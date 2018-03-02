@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="http://dplava.lib.virginia.edu/dplava.xsd"
+    type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<mdRecord xmlns="http://dplava.lib.virginia.edu/dplava/v1" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:dcterms="http://purl.org/dc/terms/"
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:edm="http://www.europeana.eu/schemas/edm/"
+    xsi:schemaLocation="http://dplava.lib.virginia.edu/dplava/v1 http://dplava.lib.virginia.edu/dplava.xsd">
+    <dcterms:title>Downtown Charlottesville</dcterms:title>
+    <dcterms:provenance>University of Virginia Libraries</dcterms:provenance>
+    <dcterms:creator>Holsinger, Ralph W</dcterms:creator>
+    <dcterms:format>Visual Materials</dcterms:format>
+    <dcterms:type>Still Image</dcterms:type>
+    <dcterms:created>191u</dcterms:created>
+    <dcterms:description>8 x 10 in.</dcterms:description>
+    <dcterms:isPartOf>Holsinger Studio Collection</dcterms:isPartOf>
+    <dcterms:identifier>Y09633B</dcterms:identifier>
+    <dcterms:identifier>MSS9862</dcterms:identifier>
+    <dcterms:isReferencedBy>http://search.lib.virginia.edu/catalog/uva-lib:1051234/iiif/manifest.json</dcterms:isReferencedBy>
+    <edm:isShownAt>http://search.lib.virginia.edu/catalog/uva-lib:1051234</edm:isShownAt>
+    <dcterms:rights>http://rightsstatements.org/vocab/UND/1.0/</dcterms:rights>
+    <edm:preview>https://iiif.lib.virginia.edu/iiif/uva-lib:1051234/full/!300,300/0/default.jpg</edm:preview>
+</mdRecord>

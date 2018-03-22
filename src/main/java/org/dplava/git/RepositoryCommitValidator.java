@@ -246,6 +246,9 @@ public class RepositoryCommitValidator {
             if (file.isHidden()) {
                 return;
             }
+            if (file.getName().equalsIgnoreCase("readme.md")) {
+                return;
+            }
             if (file.isDirectory()) {
                 for (File f : file.listFiles()) {
                     validateFileFromGitDir(f, v, errors);

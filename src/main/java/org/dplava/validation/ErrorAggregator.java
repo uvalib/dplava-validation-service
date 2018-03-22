@@ -65,13 +65,13 @@ public class ErrorAggregator implements ErrorHandler {
     }
 
     private void addError(SAXParseException exception, List<String> list) {
-        list.add((currentFile == null ? "" : currentFile + " - ") + exception.getLocalizedMessage() != null
+        list.add((currentFile == null ? "" : currentFile + " - ") + (exception.getLocalizedMessage() != null
                 ? exception.getLocalizedMessage()
-                : exception.getCause() != null
-                    ? exception.getCause().getLocalizedMessage() == null
+                : (exception.getCause() != null
+                    ? (exception.getCause().getLocalizedMessage() == null
                         ? exception.getCause().getClass().getName()
-                        : exception.getCause().getLocalizedMessage()
-                : exception.getClass().getName());
+                        : exception.getCause().getLocalizedMessage())
+                    : exception.getClass().getName())));
     }
 }
 

@@ -168,12 +168,14 @@ public class RepositoryCommitValidator {
             File gitDir = null;
             try {
                 // clone the repo
+                long start = System.currentTimeMillis();
                 gitDir = File.createTempFile(URLEncoder.encode(repositoryUri.getPath(), "UTF-8"), "cloned-git-repo");
                 gitDir.delete();
                 Git git = Git.cloneRepository()
                         .setURI(repositoryUri.toString())
                         .setDirectory(gitDir)
                         .call();
+                LOGGER.debug("Cloned " + repositoryUri.toString() + " in " + timeSince(start) + ".");
 
                 // check out the commit
                 git.checkout().setName(commitHash).call();
@@ -196,8 +198,11 @@ public class RepositoryCommitValidator {
 
                 if (previous == null) {
                     // no valid commit in the history: validate every file (YUCK!)
+                    start = System.currentTimeMillis();
                     validateFileFromGitDir(gitDir, new DPLAVAMetadataValidator(), errors);
+                    LOGGER.debug("Validated every XML file in " + timeSince(start) + ".");
                 } else {
+                    start = System.currentTimeMillis();
                     // if previous valid commit was found, just validate the changes
                     DPLAVAMetadataValidator v = new DPLAVAMetadataValidator();
 
@@ -214,6 +219,7 @@ public class RepositoryCommitValidator {
                             v.validateFile(file, errors);
                         }
                     }
+                    LOGGER.debug("Validated changed XML files since last valid commit in " + timeSince(start) + ".");
                 }
 
                 if (errors.isValid()) {
@@ -261,6 +267,22 @@ public class RepositoryCommitValidator {
                     errors.error("System Error (" + t.getMessage() == null ? t.getClass().getName() : t.getLocalizedMessage() + ")");
                 }
             }
+        }
+    }
+
+    /**
+     * Pretty prints the time since the given time (indicated in ms since epoc).
+     */
+    public static String timeSince(final long time) {
+        final long interval = System.currentTimeMillis() - time;
+        if (interval > 60 * 60 * 1000 * 1.5) {
+            return "about " + (interval / 3600000) + " hours";
+        } else if (interval > 90000) {
+            return "about " + (interval / 60000) + " minutes";
+        } else if (interval > 1500) {
+            return "about " + (interval / 1000) + " seconds";
+        } else {
+            return interval + " ms";
         }
     }
 

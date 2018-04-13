@@ -5,7 +5,7 @@
         </encoder>
     </appender>
 
-    <logger name="org.dplava" level="TRACE"/>
+    <logger name="org.dplava" level="${dplava.log:-DEBUG}"/>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>

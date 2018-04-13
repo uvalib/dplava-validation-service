@@ -199,8 +199,8 @@ public class RepositoryCommitValidator {
                 if (previous == null) {
                     // no valid commit in the history: validate every file (YUCK!)
                     start = System.currentTimeMillis();
-                    validateFileFromGitDir(gitDir, new DPLAVAMetadataValidator(), errors);
-                    LOGGER.debug("Validated every XML file in " + timeSince(start) + ".");
+                    final long count = validateFileFromGitDir(gitDir, new DPLAVAMetadataValidator(), errors);
+                    LOGGER.debug("Validated every XML file (" + count + ") in " + timeSince(start) + ".");
                 } else {
                     start = System.currentTimeMillis();
                     // if previous valid commit was found, just validate the changes
@@ -211,15 +211,17 @@ public class RepositoryCommitValidator {
                     df.setRepository(git.getRepository());
                     df.setDiffComparator(RawTextComparator.DEFAULT);
                     df.setDetectRenames(true);
+                    long count = 0;
                     List<DiffEntry> diffs = df.scan(previous.getTree(), current.getTree());
                     for (DiffEntry diff : diffs) {
                         if (diff.getChangeType().equals(DiffEntry.ChangeType.ADD) || diff.getChangeType().equals(DiffEntry.ChangeType.MODIFY)) {
                             final File file = new File(gitDir, diff.getNewPath());
                             LOGGER.trace("Validating " + file.getAbsolutePath());
                             v.validateFile(file, errors);
+                            count ++;
                         }
                     }
-                    LOGGER.debug("Validated changed XML files since last valid commit in " + timeSince(start) + ".");
+                    LOGGER.debug("Validated changed XML files (" + count + ") since last valid commit in " + timeSince(start) + ".");
                 }
 
                 if (errors.isValid()) {
@@ -248,23 +250,27 @@ public class RepositoryCommitValidator {
             }
         }
 
-        private void validateFileFromGitDir(File file, DPLAVAMetadataValidator v, ErrorAggregator errors) {
+        private long validateFileFromGitDir(File file, DPLAVAMetadataValidator v, ErrorAggregator errors) {
             if (file.isHidden()) {
-                return;
+                return 0;
             }
             if (file.getName().equalsIgnoreCase("readme.md")) {
-                return;
+                return 0;
             }
             if (file.isDirectory()) {
+                long count = 0;
                 for (File f : file.listFiles()) {
-                    validateFileFromGitDir(f, v, errors);
+                    count += validateFileFromGitDir(f, v, errors);
                 }
+                return count;
             } else {
                 try {
                     LOGGER.trace("Validating " + file.getName());
                     v.validateFile(file, errors);
+                    return 1;
                 } catch (Throwable t) {
                     errors.error("System Error (" + t.getMessage() == null ? t.getClass().getName() : t.getLocalizedMessage() + ")");
+                    return 1;
                 }
             }
         }

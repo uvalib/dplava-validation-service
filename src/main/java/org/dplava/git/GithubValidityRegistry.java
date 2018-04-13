@@ -2,13 +2,18 @@ package org.dplava.git;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.AuthCache;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.methods.HttpPatch;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.auth.BasicScheme;
@@ -108,20 +113,42 @@ public class GithubValidityRegistry implements ValidityRegistry {
 
 
     private void mergeToHarvestBranch(URI repo, String commitHash) throws IOException {
+        LOGGER.debug("Checking for " + BRANCH + " branch...");
+        if (checkRef(repo)) {
+            LOGGER.debug("Replacing ref " + BRANCH + " with ref to commit " + commitHash + ".");
+            updateRef(repo, commitHash);
+        } else {
+            LOGGER.debug("Creating ref " + BRANCH + " with ref to commit " + commitHash + ".");
+            createRef(repo, commitHash);
+        }
+    }
+
+    private boolean checkRef(URI repo) throws IOException {
         try (CloseableHttpClient client = HttpClients.createDefault()) {
-            final String posturl = BASE_URL + "/repos" + repo.getPath() + "/merges";
-            LOGGER.debug("Merging commit \"" + commitHash + "\", to " + BRANCH);
-            HttpPost post = new HttpPost(posturl);
-            JsonObject payload = Json.createObjectBuilder().add("base", BRANCH).add("head", commitHash).build();
-            post.setEntity(new StringEntity(payload.toString()));
-            try (CloseableHttpResponse response = client.execute(post, basicAuth(posturl))) {
-                final int status = response.getStatusLine().getStatusCode();
-                if (status == 404) {
-                    // possibly missing base, so create ref instead
-                    createRef(repo, commitHash);
-                } else if (!isValidStatus(status)) {
-                    LOGGER.error("Unexpected status code for post of \"" + String.valueOf(payload) + "\" to " + posturl + "! status=" + status + " payload=" + (response.getEntity() != null && response.getEntity().getContent() != null ? IOUtils.toString(response.getEntity().getContent(), "UTF-8") : ""));
-                    throw new RuntimeException("Unexpected status code: " + response.getStatusLine().getStatusCode());
+            final String headurl = BASE_URL + "/repos" + repo.getPath() + "/git/refs/heads/" + BRANCH;
+            final HttpHead head = new HttpHead(headurl);
+            try (CloseableHttpResponse response = client.execute(head, basicAuth(headurl))) {
+                final int code = response.getStatusLine().getStatusCode();
+                if (code == 404) {
+                    return false;
+                } else if (isValidStatus(response.getStatusLine().getStatusCode())) {
+                    return true;
+                } else {
+                    logUnexpectedResponse(head, response);
+                    return false;
+                }
+            }
+        }
+    }
+
+    private void updateRef(URI repo, String commitHash) throws IOException {
+        try (CloseableHttpClient client = HttpClients.createDefault()) {
+            final String patchurl = BASE_URL + "/repos" + repo.getPath() + "/git/refs/heads/" + BRANCH;
+            final HttpPatch updateRefPatch = new HttpPatch(patchurl);
+            updateRefPatch.setEntity(new StringEntity(Json.createObjectBuilder().add("sha", commitHash).add("force", true).build().toString()));
+            try (CloseableHttpResponse response = client.execute(updateRefPatch, basicAuth(patchurl))) {
+                if (!isValidStatus(response.getStatusLine().getStatusCode())) {
+                    logUnexpectedResponse(updateRefPatch, response);
                 }
             }
         }
@@ -134,8 +161,7 @@ public class GithubValidityRegistry implements ValidityRegistry {
             createRefPost.setEntity(new StringEntity(Json.createObjectBuilder().add("ref", "refs/heads/" + BRANCH).add("sha", commitHash).build().toString()));
             try (CloseableHttpResponse response = client.execute(createRefPost, basicAuth(posturl))) {
                 if (!isValidStatus(response.getStatusLine().getStatusCode())) {
-                    LOGGER.error("Unexpected status code for post to " + posturl + "! " + response.getStatusLine().getStatusCode() + "payload=" + IOUtils.toString(response.getEntity().getContent(), "UTF-8"));
-                    throw new RuntimeException("Unexpected status code: " + response.getStatusLine().getStatusCode());
+                    logUnexpectedResponse(createRefPost, response);
                 }
             }
         }
@@ -166,4 +192,10 @@ public class GithubValidityRegistry implements ValidityRegistry {
     private boolean isValidStatus(int status) {
         return status >= 200 && status <=300;
     }
+
+    private static void logUnexpectedResponse(HttpRequestBase request, HttpResponse response) throws IOException {
+        LOGGER.error("Unexpected status code for " + request.getMethod() + " to " + request.getURI() + "! " + response.getStatusLine().getStatusCode() + "payload=" + (response.getEntity() == null ? "" : IOUtils.toString(response.getEntity().getContent(), "UTF-8")));
+        throw new RuntimeException("Unexpected status code: " + response.getStatusLine().getStatusCode());
+    }
+
 }

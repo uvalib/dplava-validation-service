@@ -28,13 +28,11 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.DigestInputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Properties;
 
 
 /**
@@ -53,12 +51,34 @@ public class GithubWebhook {
     private static final Logger LOGGER = LoggerFactory.getLogger(GithubWebhook.class);
 
     public GithubWebhook() {
-        validator = new RepositoryCommitValidator(4, (System.getProperty("STATUS_REPORT_DIRECTORY") == null ? new File("commit-status-reports") : new File(System.getProperty("STATUS_REPORT_DIRECTORY"))));
+        validator = new RepositoryCommitValidator(4, (System.getenv("STATUS_REPORT_DIRECTORY") == null ? new File("commit-status-reports") : new File(System.getenv("STATUS_REPORT_DIRECTORY"))));
         gitStatus = new GithubValidityRegistry();
     }
 
     private String getSecret() {
         return System.getenv("GITHUB_SECRET");
+    }
+
+    @Path("version")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response version() {
+        try {
+            Properties p = new Properties();
+            p.load(this.getClass().getClassLoader().getResourceAsStream("version.properties"));
+            return Response.status(200).entity(Json.createObjectBuilder().add("version", p.getProperty("version")).build()).build();
+        } catch (IOException e) {
+            LOGGER.error("Error serving /status.", e);
+            return Response.status(500).build();
+        }
+    }
+
+    @Path("healthcheck")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response healthcheck() {
+        return Response.status(200).entity(Json.createObjectBuilder().add("report_fs",
+                Json.createObjectBuilder().add("healthy", validator.isReportStorageAccessible())).build()).build();
     }
 
     @Path("status")

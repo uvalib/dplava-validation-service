@@ -62,6 +62,14 @@ public class RepositoryCommitValidator {
         }
     }
 
+    /**
+     * Checks whether the storage that is used to store failure reports is accessible (read/write access).
+     * @return true if it's available and accessible, false otherwise
+     */
+    public boolean isReportStorageAccessible() {
+        return reportDirectory.exists() && reportDirectory.canWrite() && reportDirectory.canRead();
+    }
+
     public String getFailureReport(final URI repo, final String commit) throws IOException {
         File report = new File(reportDirectory, repo.getPath() + "/" + commit);
         if (report.exists()) {

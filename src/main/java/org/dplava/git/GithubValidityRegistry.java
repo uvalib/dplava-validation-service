@@ -38,7 +38,7 @@ import java.net.URL;
  * Interacts with github using the github API to store custom
  * status values for commits.
  */
-public class GithubValidityRegistry implements ValidityRegistry {
+public class GithubValidityRegistry implements ValidityRegistry, ReportPersistence {
 
     public static final String CONTEXT = "validation/dplava";
 
@@ -48,7 +48,25 @@ public class GithubValidityRegistry implements ValidityRegistry {
 
     private String owner = "dplava";
 
+    /**
+     * This flag indicates that an unauthorized response has been received.  To avoid
+     * making repeated requests, and potentically causing the account to get locked
+     * out, methods that make requests requiring authentication will fail while this
+     * is set to true (requiring an application restart).
+     */
+    private boolean unauthorized = false;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(GithubValidityRegistry.class);
+
+    public boolean checkAuthentication() throws IOException {
+        try (CloseableHttpClient client = HttpClients.createDefault()) {
+            HttpHead head = new HttpHead(BASE_URL + "/user");
+            head.setHeader("Accept", "application/vnd.github.v3+json");
+            try (CloseableHttpResponse response = client.execute(head, basicAuth(BASE_URL))) {
+                return isValidStatus(response.getStatusLine().getStatusCode());
+            }
+        }
+    }
 
     @Override
     public String getCommitStatus(URI repo, String commitHash) throws IOException {
@@ -167,7 +185,49 @@ public class GithubValidityRegistry implements ValidityRegistry {
         }
     }
 
+    private static void logUnexpectedResponse(HttpRequestBase request, HttpResponse response) throws IOException {
+        LOGGER.error("Unexpected status code for " + request.getMethod() + " to " + request.getURI() + "! " + response.getStatusLine().getStatusCode() + "payload=" + (response.getEntity() == null ? "" : IOUtils.toString(response.getEntity().getContent(), "UTF-8")));
+        throw new RuntimeException("Unexpected status code: " + response.getStatusLine().getStatusCode());
+    }
+
+    @Override
+    public boolean isReportStorageAccessible() {
+        try {
+            return checkAuthentication();
+        } catch (IOException e) {
+            LOGGER.error("Exception while checking authentication to Github API.", e);
+            return false;
+        }
+
+    }
+
+    @Override
+    public String writeFailureReport(URI repo, String commit, String report) throws IOException {
+        final String filename = "report.txt";
+        try (CloseableHttpClient client = HttpClients.createDefault()) {
+            final String posturl = BASE_URL + "/gists";
+            final HttpPost createGistPost = new HttpPost(posturl);
+            createGistPost.setEntity(new StringEntity(Json.createObjectBuilder()
+                    .add("description", "automatically generated validation report")
+                    .add("public", true)
+                    .add("files", Json.createObjectBuilder().add(filename, Json.createObjectBuilder().add("content", report).build()).build()).build().toString()));
+            try (CloseableHttpResponse response = client.execute(createGistPost, basicAuth(posturl))) {
+                if (!isValidStatus(response.getStatusLine().getStatusCode())) {
+                    logUnexpectedResponse(createGistPost, response);
+                } else {
+                    JsonObject responseObject = Json.createReader(response.getEntity().getContent()).readObject();
+                    return responseObject.getJsonObject("files").getJsonObject(filename).getString("raw_url");
+                }
+            }
+        }
+        return null;
+    }
+
     private HttpClientContext basicAuth(final String urlStr) throws MalformedURLException {
+        if (unauthorized) {
+            LOGGER.warn("Excluding previously failed authorization credentials in request to avoid lock-out.");
+            return HttpClientContext.create();
+        }
         URL url = new URL(urlStr);
         HttpHost targetHost = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
         CredentialsProvider credsProvider = new BasicCredentialsProvider();
@@ -190,12 +250,11 @@ public class GithubValidityRegistry implements ValidityRegistry {
     }
 
     private boolean isValidStatus(int status) {
+        if (status == 401) {
+            // prevent subsequent attempts
+            LOGGER.error("Unauthorized response received: you must update the GITHUB_USERNAME or GITHUB_TOKEN and restart the application!");
+            unauthorized = true;
+        }
         return status >= 200 && status <=300;
     }
-
-    private static void logUnexpectedResponse(HttpRequestBase request, HttpResponse response) throws IOException {
-        LOGGER.error("Unexpected status code for " + request.getMethod() + " to " + request.getURI() + "! " + response.getStatusLine().getStatusCode() + "payload=" + (response.getEntity() == null ? "" : IOUtils.toString(response.getEntity().getContent(), "UTF-8")));
-        throw new RuntimeException("Unexpected status code: " + response.getStatusLine().getStatusCode());
-    }
-
 }

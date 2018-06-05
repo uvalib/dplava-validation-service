@@ -32,7 +32,8 @@ public class RepositoryCommitValidatorTest {
                 .setMessage("Initial commit")
                 .setCommitter("committer", "committer@fake.fake").call();
 
-        RepositoryCommitValidator v = new RepositoryCommitValidator(1, new File("target/temp"));
+        InMemoryReportPersistence reports = new InMemoryReportPersistence();
+        RepositoryCommitValidator v = new RepositoryCommitValidator(1, reports);
         MockValidityRegistry r = new MockValidityRegistry();
         v.queueForValidation(gitUrl, c.getName(), r, "http://www.fake.com");
         v.waitFor(gitUrl, c.getName());
@@ -47,10 +48,39 @@ public class RepositoryCommitValidatorTest {
         v.queueForValidation(gitUrl, c.getName(), r, "http://www.fake.com");
         v.waitFor(gitUrl, c.getName());
         assertEquals("failure", r.getCommitStatus(gitUrl, c.getName()));
-        assertEquals("Error: sample1.xml - At least one title element is required.", v.getFailureReport(gitUrl, c.getName()));
+        assertEquals("Error: sample1.xml - At least one title element is required.", reports.getFailureReport(gitUrl, c.getName()));
 
         // now test the ability to skip dozens of irrelevant files
 
+    }
+
+    private static class InMemoryReportPersistence implements ReportPersistence {
+
+        Map<URI, Map<String, String>> reports = new HashMap<URI, Map<String, String>>();
+
+        @Override
+        public boolean isReportStorageAccessible() {
+            return true;
+        }
+
+        @Override
+        public String writeFailureReport(URI repo, String commit, String report) throws IOException {
+            Map<String, String> m = reports.get(repo);
+            if (m == null) {
+                m = new HashMap<String, String>();
+                reports.put(repo, m);
+            }
+            m.put(commit, report);
+            return null;
+        }
+
+        public String getFailureReport(URI repo, String commit) {
+            try {
+                return reports.get(repo).get(commit);
+            } catch (NullPointerException e) {
+                return null;
+            }
+        }
     }
 
     private static class MockValidityRegistry implements ValidityRegistry {

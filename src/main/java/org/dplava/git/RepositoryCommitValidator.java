@@ -44,11 +44,11 @@ public class RepositoryCommitValidator {
 
     private List<Worker> workers;
 
-    private File reportDirectory;
+    private ReportPersistence reports;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RepositoryCommitValidator.class);
 
-    public RepositoryCommitValidator(final int maxWorkerCount, final File reportDirectory) {
+    public RepositoryCommitValidator(final int maxWorkerCount, final ReportPersistence reports) {
         queuedCommits = new LinkedList<>();
         runningCommits = new ArrayList<>();
         workers = new ArrayList<>();
@@ -56,34 +56,10 @@ public class RepositoryCommitValidator {
         if (maxWorkerCount < 1) {
             throw new IllegalArgumentException("maxWorkerCount must be greater than 0");
         }
-        this.reportDirectory = reportDirectory;
-        if (!reportDirectory.exists() && !reportDirectory.mkdirs()) {
-            throw new IllegalArgumentException("Unable to make report directory (" + reportDirectory.getAbsolutePath() + ")");
-        }
+        this.reports = reports;
     }
 
-    /**
-     * Checks whether the storage that is used to store failure reports is accessible (read/write access).
-     * @return true if it's available and accessible, false otherwise
-     */
-    public boolean isReportStorageAccessible() {
-        return reportDirectory.exists() && reportDirectory.canWrite() && reportDirectory.canRead();
-    }
 
-    public String getFailureReport(final URI repo, final String commit) throws IOException {
-        File report = new File(reportDirectory, repo.getPath() + "/" + commit);
-        if (report.exists()) {
-            return FileUtils.readFileToString(report, "UTF-8");
-        } else {
-            return "";
-        }
-    }
-
-    private void writeFailureReport(final URI repo, final String commit, final String report) throws IOException {
-        File reportFile = new File(reportDirectory, repo.getPath() + "/" + commit);
-        reportFile.getParentFile().mkdirs();
-        FileUtils.writeStringToFile(reportFile, report, "UTF-8");
-    }
 
     /**
      * Asynchronously validates an individual commit and then runs the passed ResultReporter with the
@@ -236,8 +212,8 @@ public class RepositoryCommitValidator {
                     registry.reportCommitValid(repositoryUri, commitHash);
 
                 } else {
-                    writeFailureReport(repositoryUri, commitHash, errors.getErrors());
-                    registry.reportCommitInvalid(repositoryUri, commitHash, baseUrl + repositoryUri.getPath() + "/" + commitHash);
+                    final String reportUrl = reports.writeFailureReport(repositoryUri, commitHash, errors.getErrors());
+                    registry.reportCommitInvalid(repositoryUri, commitHash, reportUrl);
                 }
                 return;
 

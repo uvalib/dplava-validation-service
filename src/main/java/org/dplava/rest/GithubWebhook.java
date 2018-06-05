@@ -4,7 +4,6 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
 import org.dplava.git.GithubValidityRegistry;
 import org.dplava.git.RepositoryCommitValidator;
-import org.dplava.git.ValidityRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,6 @@ import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
@@ -46,13 +44,13 @@ public class GithubWebhook {
 
     private RepositoryCommitValidator validator;
 
-    private ValidityRegistry gitStatus;
+    private GithubValidityRegistry gitStatus;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GithubWebhook.class);
 
     public GithubWebhook() {
-        validator = new RepositoryCommitValidator(4, (System.getenv("STATUS_REPORT_DIRECTORY") == null ? new File("commit-status-reports") : new File(System.getenv("STATUS_REPORT_DIRECTORY"))));
         gitStatus = new GithubValidityRegistry();
+        validator = new RepositoryCommitValidator(4, gitStatus);
     }
 
     private String getSecret() {
@@ -77,8 +75,8 @@ public class GithubWebhook {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response healthcheck() {
-        return Response.status(200).entity(Json.createObjectBuilder().add("report_fs",
-                Json.createObjectBuilder().add("healthy", validator.isReportStorageAccessible())).build()).build();
+        return Response.status(200).entity(Json.createObjectBuilder().add("github_api",
+                Json.createObjectBuilder().add("healthy", gitStatus.isReportStorageAccessible())).build()).build();
     }
 
     @Path("status")
@@ -142,18 +140,6 @@ public class GithubWebhook {
             return Response.status(500).build();
         }
         return Response.status(201).build();
-    }
-
-    @Path("report/{owner}/{repo}/{commit}")
-    @GET
-    @Produces("text/plain")
-    public Response getReport(@PathParam("owner") String owner, @PathParam("repo") String repo, @PathParam("commit") String commitHash) throws IOException, URISyntaxException {
-        final String status = validator.getFailureReport(new URI("https://github.com/" + owner + '/' + repo), commitHash);
-        if (status == null) {
-            return Response.status(404).build();
-        } else {
-            return Response.status(200).entity(status).build();
-        }
     }
 
 }

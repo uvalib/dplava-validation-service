@@ -35,7 +35,7 @@ public class RepositoryCommitValidatorTest {
         InMemoryReportPersistence reports = new InMemoryReportPersistence();
         RepositoryCommitValidator v = new RepositoryCommitValidator(1, reports);
         MockValidityRegistry r = new MockValidityRegistry();
-        v.queueForValidation(gitUrl, c.getName(), r, "http://www.fake.com");
+        v.queueForValidation(gitUrl, c.getName(), r);
         v.waitFor(gitUrl, c.getName());
         assertEquals("success", r.getCommitStatus(gitUrl, c.getName()));
 
@@ -45,7 +45,7 @@ public class RepositoryCommitValidatorTest {
         c = git.commit().setAuthor("test", "test@fake.fake")
                 .setMessage("Added invalid file")
                 .setCommitter("committer", "committer@fake.fake").call();
-        v.queueForValidation(gitUrl, c.getName(), r, "http://www.fake.com");
+        v.queueForValidation(gitUrl, c.getName(), r);
         v.waitFor(gitUrl, c.getName());
         assertEquals("failure", r.getCommitStatus(gitUrl, c.getName()));
         assertEquals("Error: sample1.xml - At least one title element is required.", reports.getFailureReport(gitUrl, c.getName()));

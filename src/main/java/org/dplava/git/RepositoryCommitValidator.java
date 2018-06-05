@@ -67,11 +67,9 @@ public class RepositoryCommitValidator {
      * @param repo the URI for a given repository
      * @param commitHash the sha1 of the commit to validate
      * @param registry the ValidityRegistry to receive notifications about the validity status of the commit
-     * @param reportUrlBase a base URL (to which (repo/commitHash) will be appended to include in validation status
-     *                      that resolves to a report on the status
      */
-    public void queueForValidation(final URI repo, final String commitHash, final ValidityRegistry registry, final String reportUrlBase) throws IOException {
-        final CommitValidator v = new CommitValidator(repo, commitHash, registry, reportUrlBase);
+    public void queueForValidation(final URI repo, final String commitHash, final ValidityRegistry registry) throws IOException {
+        final CommitValidator v = new CommitValidator(repo, commitHash, registry);
         synchronized (queuedCommits) {
             queuedCommits.add(v);
         }
@@ -137,13 +135,10 @@ public class RepositoryCommitValidator {
 
         private ValidityRegistry registry;
 
-        private String baseUrl;
-
-        public CommitValidator(URI repo, String commitHash, ValidityRegistry registry, final String baseUrl) throws IOException {
+        public CommitValidator(URI repo, String commitHash, ValidityRegistry registry) throws IOException {
             this.repositoryUri = repo;
             this.commitHash = commitHash;
             this.registry = registry;
-            this.baseUrl = baseUrl;
             registry.reportCommitPending(repo, commitHash);
         }
 

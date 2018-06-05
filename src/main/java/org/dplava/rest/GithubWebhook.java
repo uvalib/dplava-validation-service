@@ -135,7 +135,7 @@ public class GithubWebhook {
         final String commitHash = payload.getString("after");
 
         try {
-            validator.queueForValidation(repo, commitHash, gitStatus, System.getenv("REPORT_URL"));
+            validator.queueForValidation(repo, commitHash, gitStatus);
         } catch (IOException e) {
             return Response.status(500).build();
         }

@@ -28,7 +28,7 @@ import java.net.URL;
  */
 public class DPLAVAMetadataValidator {
 
-    final static String SCHEMA_URL = "http://dplava.lib.virginia.edu/dplava.xsd";
+    final static String SCHEMA_URL = "https://dplava.lib.virginia.edu/dplava.xsd";
 
     private DocumentBuilderFactory factory;
 

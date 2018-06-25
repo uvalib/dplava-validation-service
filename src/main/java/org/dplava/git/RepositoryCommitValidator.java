@@ -210,10 +210,8 @@ public class RepositoryCommitValidator {
                     LOGGER.debug("Validated changed XML files (" + count + ") since last valid commit in " + timeSince(start) + ".");
                 }
 
-                //sdfghjk
-                //checkIdentifiers(rootFile); //gitDir
-                checkIdentifiers(gitDir, errors);
-                errors.error("Files A and B have the same id.");
+                if (!errors.isValid())
+                    checkIdentifiers(gitDir, errors);
                 
                 if (errors.isValid()) {
                     registry.reportCommitValid(repositoryUri, commitHash);
@@ -287,7 +285,7 @@ public class RepositoryCommitValidator {
             DocumentBuilder builder, Document doc, File directory, ErrorAggregator errors) {
         try {
             for (File file : directory.listFiles()) {
-                if (file.isDirectory())
+                if (file.isDirectory() && !file.getName().startsWith("."))
                     checkIdentifiers(ids, builder, doc, file, errors);
                 else if (file.getName().endsWith(".xml")) {
                     doc = builder.parse(file);

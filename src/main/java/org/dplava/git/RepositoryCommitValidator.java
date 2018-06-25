@@ -12,6 +12,8 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.xml.sax.SAXException;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,11 +21,16 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.stream.Stream;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 /**
  * Encapsulates logic to perform validation on the necessary files for commits
@@ -203,6 +210,11 @@ public class RepositoryCommitValidator {
                     LOGGER.debug("Validated changed XML files (" + count + ") since last valid commit in " + timeSince(start) + ".");
                 }
 
+                //sdfghjk
+                //checkIdentifiers(rootFile); //gitDir
+                checkIdentifiers(gitDir, errors);
+                errors.error("Files A and B have the same id.");
+                
                 if (errors.isValid()) {
                     registry.reportCommitValid(repositoryUri, commitHash);
 
@@ -271,4 +283,32 @@ public class RepositoryCommitValidator {
         }
     }
 
+    private static void checkIdentifiers(HashMap<String, String> ids,
+            DocumentBuilder builder, Document doc, File directory, ErrorAggregator errors) {
+        try {
+            for (File file : directory.listFiles()) {
+                if (file.isDirectory())
+                    checkIdentifiers(ids, builder, doc, file, errors);
+                else if (file.getName().endsWith(".xml")) {
+                    doc = builder.parse(file);
+                    doc.getDocumentElement().normalize();
+                    
+                    String id = doc.getElementsByTagName("dcterms:identifier").item(0).getTextContent();
+                    if (ids.get(id) == null)
+                        ids.put(id, file.getName());
+                    else
+                        errors.error("Files \"" + ids.get(id) + "\" and \"" + file.getName() + "\" have the same id.");
+                }
+            }
+        } catch (SAXException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public static void checkIdentifiers(File root, ErrorAggregator errors) throws ParserConfigurationException {
+        HashMap<String, String> ids = new HashMap<String, String>();
+        DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        Document doc = null;
+        checkIdentifiers(ids, builder, doc, root, errors);
+    }
 }

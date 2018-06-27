@@ -12,18 +12,28 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.xml.sax.SAXException;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.stream.Stream;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 /**
  * Encapsulates logic to perform validation on the necessary files for commits
@@ -45,6 +55,8 @@ public class RepositoryCommitValidator {
     private List<Worker> workers;
 
     private ReportPersistence reports;
+    
+    private DocumentBuilder builder;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RepositoryCommitValidator.class);
 
@@ -57,6 +69,12 @@ public class RepositoryCommitValidator {
             throw new IllegalArgumentException("maxWorkerCount must be greater than 0");
         }
         this.reports = reports;
+        
+        try {
+            builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        } catch (ParserConfigurationException e) {
+            throw new RuntimeException("Error instantiating DocumentBuilder.");
+        }
     }
 
 
@@ -204,6 +222,12 @@ public class RepositoryCommitValidator {
                 }
 
                 if (errors.isValid()) {
+                    start = System.currentTimeMillis();
+                    checkIdentifiers(new HashMap<String, String>(), null, gitDir, errors);
+                    LOGGER.debug("Checked XML files for duplicate IDs in " + timeSince(start) + ".");
+                }
+                
+                if (errors.isValid()) {
                     registry.reportCommitValid(repositoryUri, commitHash);
 
                 } else {
@@ -271,4 +295,33 @@ public class RepositoryCommitValidator {
         }
     }
 
+    /**
+     * Checks the dcterms:identifier of every xml file for duplicates, adding entries
+     * to the ErrorAggregator if found.
+     * @param ids
+     * @param doc
+     * @param directory
+     * @param errors
+     */
+    private void checkIdentifiers(HashMap<String, String> ids, Document doc, File directory, ErrorAggregator errors) {
+        try {
+            LOGGER.trace("Checking " + directory.getName() + " for unique ID.");
+            for (File file : directory.listFiles()) {
+                if (file.isDirectory() && !file.getName().startsWith(".")) {
+                    checkIdentifiers(ids, doc, file, errors);
+                } else if (file.getName().endsWith(".xml")) {
+                    doc = builder.parse(file);
+                    doc.getDocumentElement().normalize();
+                    
+                    String id = doc.getElementsByTagName("dcterms:identifier").item(0).getTextContent();
+                    if (ids.get(id) == null)
+                        ids.put(id, file.getName());
+                    else
+                        errors.error("Files \"" + ids.get(id) + "\" and \"" + file.getName() + "\" have the same id.");
+                }
+            }
+        } catch (SAXException | IOException e) {
+            errors.error("Unable to parse " + directory.getName());
+        }
+    }
 }

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by md5wz on 3/7/18.
@@ -52,6 +53,15 @@ public class RepositoryCommitValidatorTest {
 
         // now test the ability to skip dozens of irrelevant files
 
+        //test unique IDs
+        FileUtils.copyFile(new File("src/test/resources/sample-valid.xml"), new File(gitDir, "sample1.xml"));
+        git.add().addFilepattern(".").call();
+        c = git.commit().setAuthor("test", "test@fake.fake")
+                .setMessage("Added files with duplicate IDs")
+                .setCommitter("committer", "committer@fake.fake").call();
+        v.queueForValidation(gitUrl, c.getName(), r);
+        v.waitFor(gitUrl, c.getName());
+        assertTrue("An error about duplicate ids should be reported!", reports.getFailureReport(gitUrl, c.getName()).endsWith(" have the same id."));
     }
 
     private static class InMemoryReportPersistence implements ReportPersistence {

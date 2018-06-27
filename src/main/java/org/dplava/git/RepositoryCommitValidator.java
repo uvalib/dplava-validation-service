@@ -55,6 +55,8 @@ public class RepositoryCommitValidator {
     private List<Worker> workers;
 
     private ReportPersistence reports;
+    
+    private DocumentBuilder builder;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RepositoryCommitValidator.class);
 
@@ -67,6 +69,12 @@ public class RepositoryCommitValidator {
             throw new IllegalArgumentException("maxWorkerCount must be greater than 0");
         }
         this.reports = reports;
+        
+        try {
+            builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        } catch (ParserConfigurationException e) {
+            throw new RuntimeException("Error instantiating DocumentBuilder.");
+        }
     }
 
 
@@ -213,8 +221,11 @@ public class RepositoryCommitValidator {
                     LOGGER.debug("Validated changed XML files (" + count + ") since last valid commit in " + timeSince(start) + ".");
                 }
 
-                if (errors.isValid())
-                    checkIdentifiers(gitDir, errors);
+                if (errors.isValid()) {
+                    start = System.currentTimeMillis();
+                    checkIdentifiers(new HashMap<String, String>(), null, gitDir, errors);
+                    LOGGER.debug("Checked XML files for duplicate IDs in " + timeSince(start) + ".");
+                }
                 
                 if (errors.isValid()) {
                     registry.reportCommitValid(repositoryUri, commitHash);
@@ -284,13 +295,20 @@ public class RepositoryCommitValidator {
         }
     }
 
-    private static void checkIdentifiers(HashMap<String, String> ids,
-            DocumentBuilder builder, Document doc, File directory, ErrorAggregator errors) {
+    /**
+     * Checks the dcterms:identifier of every xml file for duplicates, adding entries
+     * to the ErrorAggregator if found.
+     * @param ids
+     * @param doc
+     * @param directory
+     * @param errors
+     */
+    private void checkIdentifiers(HashMap<String, String> ids, Document doc, File directory, ErrorAggregator errors) {
         try {
             LOGGER.trace("Checking " + directory.getName() + " for unique ID.");
             for (File file : directory.listFiles()) {
                 if (file.isDirectory() && !file.getName().startsWith(".")) {
-                    checkIdentifiers(ids, builder, doc, file, errors);
+                    checkIdentifiers(ids, doc, file, errors);
                 } else if (file.getName().endsWith(".xml")) {
                     doc = builder.parse(file);
                     doc.getDocumentElement().normalize();
@@ -303,14 +321,7 @@ public class RepositoryCommitValidator {
                 }
             }
         } catch (SAXException | IOException e) {
-            e.printStackTrace();
+            errors.error("Unable to parse " + directory.getName());
         }
-    }
-    
-    public static void checkIdentifiers(File root, ErrorAggregator errors) throws ParserConfigurationException {
-        HashMap<String, String> ids = new HashMap<String, String>();
-        DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-        Document doc = null;
-        checkIdentifiers(ids, builder, doc, root, errors);
     }
 }

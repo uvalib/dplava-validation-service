@@ -16,7 +16,10 @@ import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
@@ -210,7 +213,7 @@ public class RepositoryCommitValidator {
                     LOGGER.debug("Validated changed XML files (" + count + ") since last valid commit in " + timeSince(start) + ".");
                 }
 
-                if (!errors.isValid())
+                if (errors.isValid())
                     checkIdentifiers(gitDir, errors);
                 
                 if (errors.isValid()) {
@@ -284,10 +287,11 @@ public class RepositoryCommitValidator {
     private static void checkIdentifiers(HashMap<String, String> ids,
             DocumentBuilder builder, Document doc, File directory, ErrorAggregator errors) {
         try {
+            LOGGER.trace("Checking " + directory.getName() + " for unique ID.");
             for (File file : directory.listFiles()) {
-                if (file.isDirectory() && !file.getName().startsWith("."))
+                if (file.isDirectory() && !file.getName().startsWith(".")) {
                     checkIdentifiers(ids, builder, doc, file, errors);
-                else if (file.getName().endsWith(".xml")) {
+                } else if (file.getName().endsWith(".xml")) {
                     doc = builder.parse(file);
                     doc.getDocumentElement().normalize();
                     

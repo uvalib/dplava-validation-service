@@ -52,6 +52,15 @@ public class RepositoryCommitValidatorTest {
 
         // now test the ability to skip dozens of irrelevant files
 
+        //test unique IDs
+        FileUtils.copyFile(new File("src/test/resources/sample-valid.xml"), new File(gitDir, "sample1.xml"));
+        git.add().addFilepattern(".").call();
+        c = git.commit().setAuthor("test", "test@fake.fake")
+                .setMessage("Added files with duplicate IDs")
+                .setCommitter("committer", "committer@fake.fake").call();
+        v.queueForValidation(gitUrl, c.getName(), r);
+        v.waitFor(gitUrl, c.getName());
+        assertEquals("Error: Files \"sample.xml\" and \"sample1.xml\" have the same id.", reports.getFailureReport(gitUrl, c.getName()));
     }
 
     private static class InMemoryReportPersistence implements ReportPersistence {

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by md5wz on 3/7/18.
@@ -60,7 +61,7 @@ public class RepositoryCommitValidatorTest {
                 .setCommitter("committer", "committer@fake.fake").call();
         v.queueForValidation(gitUrl, c.getName(), r);
         v.waitFor(gitUrl, c.getName());
-        assertEquals("Error: Files \"sample.xml\" and \"sample1.xml\" have the same id.", reports.getFailureReport(gitUrl, c.getName()));
+        assertTrue("An error about duplicate ids should be reported!", reports.getFailureReport(gitUrl, c.getName()).endsWith(" have the same id."));
     }
 
     private static class InMemoryReportPersistence implements ReportPersistence {

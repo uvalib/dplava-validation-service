@@ -93,6 +93,7 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
     @Override
     public void reportCommitInvalid(URI repo, String commitHash, String url) throws IOException {
         postStatus(repo, commitHash, FAILURE, url);
+        //send email
     }
 
     @Override

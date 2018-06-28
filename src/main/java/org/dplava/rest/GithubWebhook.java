@@ -2,6 +2,7 @@ package org.dplava.rest;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
+import org.dplava.git.GithubPayload;
 import org.dplava.git.GithubValidityRegistry;
 import org.dplava.git.RepositoryCommitValidator;
 import org.slf4j.Logger;
@@ -53,10 +54,6 @@ public class GithubWebhook {
         validator = new RepositoryCommitValidator(4, gitStatus);
     }
 
-    private String getSecret() {
-        return System.getenv("GITHUB_SECRET");
-    }
-
     @Path("version")
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -96,46 +93,30 @@ public class GithubWebhook {
         }
         signature = signature.substring("sha1=".length());
 
-        final JsonObject payload;
-        SecretKeySpec keySpec = new SecretKeySpec(getSecret().getBytes(), "HmacSHA1");
-        Mac mac = Mac.getInstance("HmacSHA1");
-        mac.init(keySpec);
-        byte[] result = mac.doFinal(payloadBytes);
-        final String computedDigest = Hex.encodeHexString(result);
-        if (!computedDigest.equalsIgnoreCase(signature)) {
-            LOGGER.warn("Signature mismatch: " + computedDigest + " != " + signature);
-            File dump = new File("payload-dump.bin");
-            try (FileOutputStream fos = new FileOutputStream(dump)) {
-                IOUtils.write(payloadBytes, fos);
-            }
-            return Response.status(400).entity("Signature mismatch.").build();
-        }
-
+        GithubPayload githubPayload = new GithubPayload(payloadBytes, signature);
+        
         if (eventType.equals("ping")) {
             return Response.status(200).build();
         } else if (!eventType.equals("push")) {
             return Response.status(400).entity("This service only supports \"push\" and \"ping\" events!").build();
         }
-
-        try (JsonReader reader = Json.createReader(new ByteArrayInputStream(payloadBytes))) {
-            payload = reader.readObject();
-        }
-
+        
         // for each commit in the push, check the status
         // if there's none for this context, queue a validation of that commit
-        if (payload == null) {
+        if (githubPayload.getPayload() == null) {
             return Response.status(400).build();
         }
 
-        if (!payload.getString("ref").equals("refs/heads/master")) {
+        if (!githubPayload.getRef().equals("refs/heads/master")) {
             return Response.status(200).entity("This hook only validates the master branch.").build();
         }
 
-        final URI repo = new URI(payload.getJsonObject("repository").getString("url"));
-        final String commitHash = payload.getString("after");
+        //final URI repo = new URI(payload.getJsonObject("repository").getString("url"));
+        //final String commitHash = payload.getString("after");
 
         try {
-            validator.queueForValidation(repo, commitHash, gitStatus);
+            validator.queueForValidation(githubPayload.getRepository(), githubPayload.getCommitHash(), gitStatus);
+            //validator.queueForValidation(repo, commitHash, gitStatus);
         } catch (IOException e) {
             return Response.status(500).build();
         }

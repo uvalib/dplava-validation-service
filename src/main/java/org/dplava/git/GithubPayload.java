@@ -19,6 +19,7 @@ import org.apache.commons.io.IOUtils;
 public class GithubPayload {
 
     private JsonObject payload;
+    private URI repository;
     
     public GithubPayload(byte[] payloadBytes, String signature) {
         try {
@@ -41,7 +42,10 @@ public class GithubPayload {
             try (JsonReader reader = Json.createReader(new ByteArrayInputStream(payloadBytes))) {
                 payload = reader.readObject();
             }
+            
+            repository = new URI(payload.getString("repo"));
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
@@ -50,8 +54,8 @@ public class GithubPayload {
         return payload;
     }
     
-    public URI getRepository() throws URISyntaxException {
-        return new URI(payload.getString("repo"));
+    public URI getRepository() {
+        return repository;
     }
     
     public String getRef() {
@@ -60,6 +64,14 @@ public class GithubPayload {
     
     public String getCommitHash() {
         return payload.getString("after");
+    }
+    
+    public String getCommitId() {
+        return payload.getJsonObject("head_commit").getString("id");
+    }
+    
+    public String getEmail() {
+        return payload.getJsonObject("pusher").getString("email");
     }
     
     private String getSecret() {

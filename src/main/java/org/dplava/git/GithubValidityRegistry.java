@@ -102,24 +102,21 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
             Email email = new SimpleEmail();
             email.setHostName("localhost");
             email.setSmtpPort(465);
-            //email.setAuthenticator(new DefaultAuthenticator("username", "password"));
-            //email.setSSLOnConnect(true);
             email.setFrom("user@gmail.com");
             email.setSubject("Github Repository Validation Failure");
             
-            String date = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date());
             String message = "This is an automatic message to inform you that the most recent batch "
                     + "of records you provided for inclusion in DPLA through the git-based submission "
                     + "process did not pass all of the metadata checks.\n\nUntil the issues have been "
                     + "addressed and a subsequent submission (push), only the last validated set of "
                     + "records will be included in DPLA.\n\nA full report of the failed metadata "
-                    + "checks is available at (link to the report).\n\nPlease contact a member of the "
-                    + "Digital Virginias team if you have further questions.";
+                    + "checks is available at " + payload.getCommitURL() + ".\n\nPlease contact a "
+                    + "member of the Digital Virginias team if you have further questions.";
             email.setMsg(message);
             email.addTo(payload.getEmail());
             email.send();
         } catch (EmailException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
@@ -138,7 +135,7 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
     public void reportSystemError(GithubPayload payload) throws IOException {
         postStatus(payload, ERROR, null);
     }
-//payload.getRepository(), payload.getCommitHash()
+
     private void postStatus(GithubPayload payload, final String state, final String url) throws IOException {
         try (CloseableHttpClient client = HttpClients.createDefault()) {
             final String posturl = BASE_URL + "/repos" + payload.getRepository().getPath() + "/statuses/" + payload.getCommitHash();

@@ -8,7 +8,10 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -21,7 +24,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class RepositoryCommitValidatorTest {
     @Test //make a string json object call toBytes on it and make a GithubPayload from that.
-    public void testValidRepository() throws GitAPIException, IOException, InterruptedException {
+    public void testValidRepository() throws GitAPIException, IOException, InterruptedException, InvalidKeyException, NoSuchAlgorithmException {
         // set up the repository with one valid file
         final File gitDir = new File("target/" + UUID.randomUUID().toString());
         URI gitUrl = gitDir.toURI();
@@ -31,15 +34,16 @@ public class RepositoryCommitValidatorTest {
         RevCommit c = git.commit().setAuthor("test", "test@fake.fake")
                 .setMessage("Initial commit")
                 .setCommitter("committer", "committer@fake.fake").call();
-
-        //getJsonObject("repository").getString("url");
-        String fakeJSONObject = "{\"repo\"=\"" + gitUrl + "\",\"repository\"={\"url\"=\"" + "foo" + "\"},\"after\"=\"" + c.getName() + "\"}";
-        GithubPayload payload = new GithubPayload(fakeJSONObject.getBytes(), "");
+        
+        assertTrue("GITHUB_SECRET is not set!", GithubPayload.getSecret() != null);
+        
+        
         
         InMemoryReportPersistence reports = new InMemoryReportPersistence();
         RepositoryCommitValidator v = new RepositoryCommitValidator(1, reports);
         MockValidityRegistry r = new MockValidityRegistry();
-        v.queueForValidation(payload, r); //gitUrl, c.getName()
+        GithubPayload payload = createPayload(gitUrl, c.getName());
+        v.queueForValidation(payload, r);
         v.waitFor(gitUrl, c.getName());
         assertEquals("success", r.getCommitStatus(payload));
 
@@ -49,12 +53,15 @@ public class RepositoryCommitValidatorTest {
         c = git.commit().setAuthor("test", "test@fake.fake")
                 .setMessage("Added invalid file")
                 .setCommitter("committer", "committer@fake.fake").call();
+        payload = createPayload(gitUrl, c.getName());
         v.queueForValidation(payload, r);
         v.waitFor(gitUrl, c.getName());
+
         assertEquals("failure", r.getCommitStatus(payload));
         assertEquals("Error: sample1.xml - At least one title element is required.", reports.getFailureReport(gitUrl, c.getName()));
 
         // now test the ability to skip dozens of irrelevant files
+        // ...
 
         //test unique IDs
         FileUtils.copyFile(new File("src/test/resources/sample-valid.xml"), new File(gitDir, "sample1.xml"));
@@ -62,9 +69,16 @@ public class RepositoryCommitValidatorTest {
         c = git.commit().setAuthor("test", "test@fake.fake")
                 .setMessage("Added files with duplicate IDs")
                 .setCommitter("committer", "committer@fake.fake").call();
+        payload = createPayload(gitUrl, c.getName());
         v.queueForValidation(payload, r);
         v.waitFor(gitUrl, c.getName());
         assertTrue("An error about duplicate ids should be reported!", reports.getFailureReport(gitUrl, c.getName()).endsWith(" have the same id."));
+    }
+    
+    private GithubPayload createPayload(URI gitUrl, String commitName) throws InvalidKeyException, NoSuchAlgorithmException, UnsupportedEncodingException {
+        String fakeJSONObject = "{\"repo\":\"" + gitUrl + "\",\"repository\":{\"url\":\"" + "foo"
+                + "\"},\"after\":\"" + commitName + "\"}";
+        return new GithubPayload(fakeJSONObject.getBytes(), GithubPayload.computeDigest(fakeJSONObject.getBytes("UTF-8")));
     }
 
     private static class InMemoryReportPersistence implements ReportPersistence {

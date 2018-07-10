@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -23,19 +25,11 @@ public class GithubPayload {
     
     public GithubPayload(byte[] payloadBytes, String signature) {
         try {
-            SecretKeySpec keySpec = new SecretKeySpec(getSecret().getBytes(), "HmacSHA1");
-            Mac mac = Mac.getInstance("HmacSHA1");
-            mac.init(keySpec);
-            byte[] result = mac.doFinal(payloadBytes);
-            final String computedDigest = Hex.encodeHexString(result);
-
-            if (!computedDigest.equalsIgnoreCase(signature)) {
-                //LOGGER.warn("Signature mismatch: " + computedDigest + " != " + signature);
+            if (!computeDigest(payloadBytes).equalsIgnoreCase(signature)) {
                 File dump = new File("payload-dump.bin");
                 try (FileOutputStream fos = new FileOutputStream(dump)) {
                     IOUtils.write(payloadBytes, fos);
                 }
-                //return Response.status(400).entity("Signature mismatch.").build();
                 throw new RuntimeException("Signature mismatch.");
             }
 
@@ -65,16 +59,24 @@ public class GithubPayload {
     public String getCommitHash() {
         return payload.getString("after");
     }
-    
-    public String getCommitId() {
-        return payload.getJsonObject("head_commit").getString("id");
-    }
-    
+
     public String getEmail() {
         return payload.getJsonObject("pusher").getString("email");
     }
     
-    private String getSecret() {
-        return System.getenv("GITHUB_SECRET");
+    public String getCommitURL() {
+        return payload.getJsonArray("commits").getJsonObject(0).getString("url");
+    }
+    
+    protected static String getSecret() {
+        return System.getenv("GITHUB_SECRET") != null ? System.getenv("GITHUB_SECRET") : System.getProperty("GITHUB_SECRET");
+    }
+    
+    protected static String computeDigest(byte[] payloadBytes) throws NoSuchAlgorithmException, InvalidKeyException {
+        SecretKeySpec keySpec = new SecretKeySpec(getSecret().getBytes(), "HmacSHA1");
+        Mac mac = Mac.getInstance("HmacSHA1");
+        mac.init(keySpec);
+        byte[] result = mac.doFinal(payloadBytes);
+        return Hex.encodeHexString(result);
     }
 }

@@ -87,6 +87,7 @@ public class RepositoryCommitValidator {
      * @param registry the ValidityRegistry to receive notifications about the validity status of the commit
      */
     public void queueForValidation(GithubPayload payload, final ValidityRegistry registry) throws IOException {
+        LOGGER.trace(payload.getCommitHash() + " " + payload.getRepository());
         final CommitValidator v = new CommitValidator(payload, registry);
         synchronized (queuedCommits) {
             queuedCommits.add(v);
@@ -113,7 +114,7 @@ public class RepositoryCommitValidator {
     private boolean isValidatingCommit(URI repo, String commitHash) {
         synchronized (queuedCommits) {
             return Stream.concat(queuedCommits.stream(), runningCommits.stream()).anyMatch(v -> {
-                return v != null && v.payload.getRepository().equals(repo) && v.payload.getCommitHash().equals(commitHash);
+                return v.payload.getRepository().equals(repo) && v.payload.getCommitHash().equals(commitHash);
             });
         }
     }
@@ -138,7 +139,8 @@ public class RepositoryCommitValidator {
         private CommitValidator takeWork() {
             synchronized (queuedCommits) {
                 final CommitValidator v =  queuedCommits.poll();
-                runningCommits.add(v);
+                if (v != null)
+                    runningCommits.add(v);
                 return v;
             }
         }
@@ -218,6 +220,7 @@ public class RepositoryCommitValidator {
                     LOGGER.debug("Validated changed XML files (" + count + ") since last valid commit in " + timeSince(start) + ".");
                 }
 
+                //make sure all files have unique IDs
                 if (errors.isValid()) {
                     start = System.currentTimeMillis();
                     checkIdentifiers(new HashMap<String, String>(), null, gitDir, errors);
@@ -235,6 +238,7 @@ public class RepositoryCommitValidator {
 
             } catch (Throwable t) {
                 try {
+                    LOGGER.error("Error validating xml files!", t);
                     registry.reportSystemError(payload);
                 } catch (IOException e) {
                     LOGGER.error("Unable to post error to validator!", e);

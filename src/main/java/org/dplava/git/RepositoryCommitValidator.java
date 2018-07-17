@@ -86,8 +86,9 @@ public class RepositoryCommitValidator {
      * @param commitHash the sha1 of the commit to validate
      * @param registry the ValidityRegistry to receive notifications about the validity status of the commit
      */
-    public void queueForValidation(final URI repo, final String commitHash, final ValidityRegistry registry) throws IOException {
-        final CommitValidator v = new CommitValidator(repo, commitHash, registry);
+    public void queueForValidation(GithubPayload payload, final ValidityRegistry registry) throws IOException {
+        LOGGER.trace(payload.getCommitHash() + " " + payload.getRepository());
+        final CommitValidator v = new CommitValidator(payload, registry);
         synchronized (queuedCommits) {
             queuedCommits.add(v);
         }
@@ -113,7 +114,7 @@ public class RepositoryCommitValidator {
     private boolean isValidatingCommit(URI repo, String commitHash) {
         synchronized (queuedCommits) {
             return Stream.concat(queuedCommits.stream(), runningCommits.stream()).anyMatch(v -> {
-                return v != null && v.repositoryUri.equals(repo) && v.commitHash.equals(commitHash);
+                return v.payload.getRepository().equals(repo) && v.payload.getCommitHash().equals(commitHash);
             });
         }
     }
@@ -138,7 +139,8 @@ public class RepositoryCommitValidator {
         private CommitValidator takeWork() {
             synchronized (queuedCommits) {
                 final CommitValidator v =  queuedCommits.poll();
-                runningCommits.add(v);
+                if (v != null)
+                    runningCommits.add(v);
                 return v;
             }
         }
@@ -147,17 +149,14 @@ public class RepositoryCommitValidator {
 
     public class CommitValidator implements Runnable {
 
-        private String commitHash;
-
-        private URI repositoryUri;
-
         private ValidityRegistry registry;
+        
+        private GithubPayload payload;
 
-        public CommitValidator(URI repo, String commitHash, ValidityRegistry registry) throws IOException {
-            this.repositoryUri = repo;
-            this.commitHash = commitHash;
+        public CommitValidator(GithubPayload payload, ValidityRegistry registry) throws IOException {
+            this.payload = payload;
             this.registry = registry;
-            registry.reportCommitPending(repo, commitHash);
+            registry.reportCommitPending(payload);
         }
 
         @Override
@@ -166,16 +165,16 @@ public class RepositoryCommitValidator {
             try {
                 // clone the repo
                 long start = System.currentTimeMillis();
-                gitDir = File.createTempFile(URLEncoder.encode(repositoryUri.getPath(), "UTF-8"), "cloned-git-repo");
+                gitDir = File.createTempFile(URLEncoder.encode(payload.getRepository().getPath(), "UTF-8"), "cloned-git-repo");
                 gitDir.delete();
                 Git git = Git.cloneRepository()
-                        .setURI(repositoryUri.toString())
+                        .setURI(payload.getRepository().toString())
                         .setDirectory(gitDir)
                         .call();
-                LOGGER.debug("Cloned " + repositoryUri.toString() + " in " + timeSince(start) + ".");
+                LOGGER.debug("Cloned " + payload.getRepository().toString() + " in " + timeSince(start) + ".");
 
                 // check out the commit
-                git.checkout().setName(commitHash).call();
+                git.checkout().setName(payload.getCommitHash()).call();
 
                 // determine the last valid commit
                 Iterator<RevCommit> revisions = git.log().call().iterator();
@@ -183,7 +182,7 @@ public class RepositoryCommitValidator {
                 RevCommit previous = null;
                 while (revisions.hasNext()) {
                     previous = revisions.next();
-                    final String previousCommitStatus = registry.getCommitStatus(repositoryUri, previous.getName());
+                    final String previousCommitStatus = registry.getCommitStatus(payload);
                     if (previousCommitStatus != null && previousCommitStatus.equals(ValidityRegistry.SUCCESS)) {
                         break;
                     } else {
@@ -221,6 +220,7 @@ public class RepositoryCommitValidator {
                     LOGGER.debug("Validated changed XML files (" + count + ") since last valid commit in " + timeSince(start) + ".");
                 }
 
+                //make sure all files have unique IDs
                 if (errors.isValid()) {
                     start = System.currentTimeMillis();
                     checkIdentifiers(new HashMap<String, String>(), null, gitDir, errors);
@@ -228,22 +228,28 @@ public class RepositoryCommitValidator {
                 }
                 
                 if (errors.isValid()) {
-                    registry.reportCommitValid(repositoryUri, commitHash);
+                    registry.reportCommitValid(payload);
 
                 } else {
-                    final String reportUrl = reports.writeFailureReport(repositoryUri, commitHash, errors.getErrors());
-                    registry.reportCommitInvalid(repositoryUri, commitHash, reportUrl);
+                    try {
+                        final String reportUrl = reports.writeFailureReport(payload, errors.getErrors());
+                        registry.reportCommitInvalid(payload, reportUrl);
+                    } catch (IOException e) {
+                        registry.reportCommitInvalid(payload, null);
+                        throw new IOException(e);
+                    }                    
                 }
                 return;
 
             } catch (Throwable t) {
                 try {
-                    registry.reportSystemError(repositoryUri, commitHash);
+                    LOGGER.error("Error validating xml files!", t);
+                    registry.reportSystemError(payload);
                 } catch (IOException e) {
                     LOGGER.error("Unable to post error to validator!", e);
 
                 }
-                LOGGER.error("Unexpected error validating " + repositoryUri.getPath() + " commit " + commitHash, t);
+                LOGGER.error("Unexpected error validating " + payload.getRepository().getPath() + " commit " + payload.getCommitHash(), t);
             } finally {
                 try {
                     FileUtils.deleteDirectory(gitDir);
@@ -298,10 +304,6 @@ public class RepositoryCommitValidator {
     /**
      * Checks the dcterms:identifier of every xml file for duplicates, adding entries
      * to the ErrorAggregator if found.
-     * @param ids
-     * @param doc
-     * @param directory
-     * @param errors
      */
     private void checkIdentifiers(HashMap<String, String> ids, Document doc, File directory, ErrorAggregator errors) {
         try {

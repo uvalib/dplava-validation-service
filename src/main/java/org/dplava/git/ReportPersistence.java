@@ -21,6 +21,6 @@ public interface ReportPersistence {
      * @return the URL at which the report can henceforth be retrieved
      * @throws IOException if an error occurs while persisting the report.
      */
-    public String writeFailureReport(final URI repo, final String commit, final String report) throws IOException;
+    public String writeFailureReport(GithubPayload payload, final String report) throws IOException;
 
 }

@@ -1,6 +1,7 @@
 package org.dplava.git;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.mail.*;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
@@ -33,6 +34,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * Interacts with github using the github API to store custom
@@ -69,9 +72,9 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
     }
 
     @Override
-    public String getCommitStatus(URI repo, String commitHash) throws IOException {
+    public String getCommitStatus(GithubPayload payload) throws IOException {
         try (CloseableHttpClient client = HttpClients.createDefault()) {
-            HttpGet get = new HttpGet(BASE_URL + "/repos" + repo.getPath() + "/commits/" + commitHash + "/statuses");
+            HttpGet get = new HttpGet(BASE_URL + "/repos" + payload.getRepository().getPath() + "/commits/" + payload.getCommitHash() + "/statuses");
             get.setHeader("Accept", "application/vnd.github.v3+json");
             try (CloseableHttpResponse response = client.execute(get)) {
                 JsonArray a = Json.createReader(response.getEntity().getContent()).readArray();
@@ -91,29 +94,51 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
     }
 
     @Override
-    public void reportCommitInvalid(URI repo, String commitHash, String url) throws IOException {
-        postStatus(repo, commitHash, FAILURE, url);
+    public void reportCommitInvalid(GithubPayload payload, String url) throws IOException {
+        postStatus(payload, FAILURE, url);
+        
+        //notify pusher via email
+        try {
+            Email email = new SimpleEmail();
+            email.setHostName("localhost");
+            email.setSmtpPort(465);
+            email.setFrom(payload.getErrorEmail());
+            email.setSubject("Github Repository Validation Failure");
+            
+            String message = "This is an automatic message to inform you that the most recent batch "
+                    + "of records you provided for inclusion in DPLA through the git-based submission "
+                    + "process did not pass all of the metadata checks.\n\nUntil the issues have been "
+                    + "addressed and a subsequent submission (push), only the last validated set of "
+                    + "records will be included in DPLA.\n\nA full report of the failed metadata "
+                    + "checks is available at " + payload.getCommitURL() + ".\n\nPlease contact a "
+                    + "member of the Digital Virginias team if you have further questions.";
+            email.setMsg(message);
+            email.addTo(payload.getEmail());
+            email.send();
+        } catch (EmailException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
-    public void reportCommitValid(URI repo, String commitHash) throws IOException {
-        postStatus(repo, commitHash, SUCCESS, null);
-        mergeToHarvestBranch(repo, commitHash);
+    public void reportCommitValid(GithubPayload payload) throws IOException {
+        postStatus(payload, SUCCESS, null);
+        mergeToHarvestBranch(payload);
     }
 
     @Override
-    public void reportCommitPending(URI repo, String commitHash) throws IOException {
-        postStatus(repo, commitHash, PENDING, null);
+    public void reportCommitPending(GithubPayload payload) throws IOException {
+        postStatus(payload, PENDING, null);
     }
 
     @Override
-    public void reportSystemError(URI repo, String commitHash) throws IOException {
-        postStatus(repo, commitHash, ERROR, null);
+    public void reportSystemError(GithubPayload payload) throws IOException {
+        postStatus(payload, ERROR, null);
     }
 
-    private void postStatus(final URI repo, final String commitHash, final String state, final String url) throws IOException {
+    private void postStatus(GithubPayload payload, final String state, final String url) throws IOException {
         try (CloseableHttpClient client = HttpClients.createDefault()) {
-            final String posturl = BASE_URL + "/repos" + repo.getPath() + "/statuses/" + commitHash;
+            final String posturl = BASE_URL + "/repos" + payload.getRepository().getPath() + "/statuses/" + payload.getCommitHash();
             LOGGER.debug("Posting status \"" + state + "\", to " + posturl);
             HttpPost post = new HttpPost(posturl);
             JsonObjectBuilder statusJson = Json.createObjectBuilder().add("state", state).add("context", CONTEXT);
@@ -130,14 +155,14 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
     }
 
 
-    private void mergeToHarvestBranch(URI repo, String commitHash) throws IOException {
+    private void mergeToHarvestBranch(GithubPayload payload) throws IOException {
         LOGGER.debug("Checking for " + BRANCH + " branch...");
-        if (checkRef(repo)) {
-            LOGGER.debug("Replacing ref " + BRANCH + " with ref to commit " + commitHash + ".");
-            updateRef(repo, commitHash);
+        if (checkRef(payload.getRepository())) {
+            LOGGER.debug("Replacing ref " + BRANCH + " with ref to commit " + payload.getCommitHash() + ".");
+            updateRef(payload);
         } else {
-            LOGGER.debug("Creating ref " + BRANCH + " with ref to commit " + commitHash + ".");
-            createRef(repo, commitHash);
+            LOGGER.debug("Creating ref " + BRANCH + " with ref to commit " + payload.getCommitHash() + ".");
+            createRef(payload);
         }
     }
 
@@ -159,11 +184,11 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
         }
     }
 
-    private void updateRef(URI repo, String commitHash) throws IOException {
+    private void updateRef(GithubPayload payload) throws IOException {
         try (CloseableHttpClient client = HttpClients.createDefault()) {
-            final String patchurl = BASE_URL + "/repos" + repo.getPath() + "/git/refs/heads/" + BRANCH;
+            final String patchurl = BASE_URL + "/repos" + payload.getRepository().getPath() + "/git/refs/heads/" + BRANCH;
             final HttpPatch updateRefPatch = new HttpPatch(patchurl);
-            updateRefPatch.setEntity(new StringEntity(Json.createObjectBuilder().add("sha", commitHash).add("force", true).build().toString()));
+            updateRefPatch.setEntity(new StringEntity(Json.createObjectBuilder().add("sha", payload.getCommitHash()).add("force", true).build().toString()));
             try (CloseableHttpResponse response = client.execute(updateRefPatch, basicAuth(patchurl))) {
                 if (!isValidStatus(response.getStatusLine().getStatusCode())) {
                     logUnexpectedResponse(updateRefPatch, response);
@@ -172,11 +197,11 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
         }
     }
 
-    private void createRef(URI repo, String commitHash) throws IOException {
+    private void createRef(GithubPayload payload) throws IOException {
         try (CloseableHttpClient client = HttpClients.createDefault()) {
-            final String posturl = BASE_URL + "/repos" + repo.getPath() + "/git/refs";
+            final String posturl = BASE_URL + "/repos" + payload.getRepository().getPath() + "/git/refs";
             final HttpPost createRefPost = new HttpPost(posturl);
-            createRefPost.setEntity(new StringEntity(Json.createObjectBuilder().add("ref", "refs/heads/" + BRANCH).add("sha", commitHash).build().toString()));
+            createRefPost.setEntity(new StringEntity(Json.createObjectBuilder().add("ref", "refs/heads/" + BRANCH).add("sha", payload.getCommitHash()).build().toString()));
             try (CloseableHttpResponse response = client.execute(createRefPost, basicAuth(posturl))) {
                 if (!isValidStatus(response.getStatusLine().getStatusCode())) {
                     logUnexpectedResponse(createRefPost, response);
@@ -202,7 +227,7 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
     }
 
     @Override
-    public String writeFailureReport(URI repo, String commit, String report) throws IOException {
+    public String writeFailureReport(GithubPayload payload, String report) throws IOException {
         final String filename = "report.txt";
         try (CloseableHttpClient client = HttpClients.createDefault()) {
             final String posturl = BASE_URL + "/gists";

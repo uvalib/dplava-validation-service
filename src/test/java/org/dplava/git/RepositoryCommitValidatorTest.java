@@ -23,7 +23,7 @@ import static org.junit.Assert.assertTrue;
  * Created by md5wz on 3/7/18.
  */
 public class RepositoryCommitValidatorTest {
-    @Test //make a string json object call toBytes on it and make a GithubPayload from that.
+    @Test
     public void testValidRepository() throws GitAPIException, IOException, InterruptedException, InvalidKeyException, NoSuchAlgorithmException {
         // set up the repository with one valid file
         final File gitDir = new File("target/" + UUID.randomUUID().toString());

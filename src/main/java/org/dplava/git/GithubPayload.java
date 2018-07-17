@@ -79,4 +79,8 @@ public class GithubPayload {
         byte[] result = mac.doFinal(payloadBytes);
         return Hex.encodeHexString(result);
     }
+    
+    protected String getErrorEmail() {
+        return System.getenv("ERROR_EMAIL") != null ? System.getenv("ERROR_EMAIL") : System.getProperty("ERROR_EMAIL");
+    }
 }

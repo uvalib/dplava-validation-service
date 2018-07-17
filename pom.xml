@@ -132,6 +132,7 @@
 	            <configuration>
 	                <systemPropertyVariables>
 	                    <GITHUB_SECRET>00000000000000000000</GITHUB_SECRET>
+	                    <ERROR_EMAIL>dplava-noreply@github.com</ERROR_EMAIL>
 	                </systemPropertyVariables>
 	            </configuration>
         	</plugin>

@@ -102,7 +102,7 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
             Email email = new SimpleEmail();
             email.setHostName("localhost");
             email.setSmtpPort(465);
-            email.setFrom("user@gmail.com");
+            email.setFrom(payload.getErrorEmail());
             email.setSubject("Github Repository Validation Failure");
             
             String message = "This is an automatic message to inform you that the most recent batch "

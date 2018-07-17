@@ -1,7 +1,6 @@
 package org.dplava.git;
 
 import java.io.IOException;
-import java.net.URI;
 
 public interface ValidityRegistry {
 

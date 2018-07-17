@@ -111,12 +111,8 @@ public class GithubWebhook {
             return Response.status(200).entity("This hook only validates the master branch.").build();
         }
 
-        //final URI repo = new URI(payload.getJsonObject("repository").getString("url"));
-        //final String commitHash = payload.getString("after");
-
         try {
             validator.queueForValidation(githubPayload, gitStatus);
-            //validator.queueForValidation(repo, commitHash, gitStatus);
         } catch (IOException e) {
             return Response.status(500).build();
         }

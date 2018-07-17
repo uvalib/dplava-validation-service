@@ -231,8 +231,13 @@ public class RepositoryCommitValidator {
                     registry.reportCommitValid(payload);
 
                 } else {
-                    final String reportUrl = reports.writeFailureReport(payload, errors.getErrors());
-                    registry.reportCommitInvalid(payload, reportUrl);
+                    try {
+                        final String reportUrl = reports.writeFailureReport(payload, errors.getErrors());
+                        registry.reportCommitInvalid(payload, reportUrl);
+                    } catch (IOException e) {
+                        registry.reportCommitInvalid(payload, null);
+                        throw new IOException(e);
+                    }                    
                 }
                 return;
 

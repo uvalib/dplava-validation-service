@@ -93,12 +93,15 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
         return null;
     }
 
-    private String getSMTPHostname() {
+    public static String getSMTPHostname() {
         return System.getenv("SMTP_HOST");
     }
 
-    private int getSMTPPort() {
+    public static int getSMTPPort() {
         final String portString = System.getenv("SMTP_PORT");
+        if (portString == null) {
+            return 25;
+        }
         try {
             return Integer.parseInt(portString);
         } catch (NumberFormatException e) {
@@ -124,11 +127,12 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
                     + "process did not pass all of the metadata checks.\n\nUntil the issues have been "
                     + "addressed and a subsequent submission (push), only the last validated set of "
                     + "records will be included in DPLA.\n\nA full report of the failed metadata "
-                    + "checks is available at " + payload.getCommitURL() + ".\n\nPlease contact a "
+                    + "checks is available at " + url + ".\n\nPlease contact a "
                     + "member of the Digital Virginias team if you have further questions.";
             email.setMsg(message);
             email.addTo(payload.getEmail());
             email.send();
+            LOGGER.info("Sent email about invalid records to " + payload.getErrorEmail());
         } catch (EmailException e) {
             throw new RuntimeException(e);
         }

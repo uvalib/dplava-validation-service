@@ -120,7 +120,7 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
             email.setHostName(getSMTPHostname());
             email.setSmtpPort(getSMTPPort());
             email.setFrom(payload.getErrorEmail());
-            email.setSubject("Github Repository Validation Failure");
+            email.setSubject("DPLAVA Metadata Validation Report");
             
             String message = "This is an automatic message to inform you that the most recent batch "
                     + "of records you provided for inclusion in DPLA through the git-based submission "

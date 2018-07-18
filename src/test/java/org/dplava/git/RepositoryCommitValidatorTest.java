@@ -23,6 +23,8 @@ import static org.junit.Assert.assertTrue;
  * Created by md5wz on 3/7/18.
  */
 public class RepositoryCommitValidatorTest {
+
+    private static final String MASTER = "refs/heads/master";
     @Test
     public void testValidRepository() throws GitAPIException, IOException, InterruptedException, InvalidKeyException, NoSuchAlgorithmException {
         // set up the repository with one valid file
@@ -42,7 +44,7 @@ public class RepositoryCommitValidatorTest {
         InMemoryReportPersistence reports = new InMemoryReportPersistence();
         RepositoryCommitValidator v = new RepositoryCommitValidator(1, reports);
         MockValidityRegistry r = new MockValidityRegistry();
-        GithubPayload payload = createPayload(gitUrl, c.getName());
+        GithubPayload payload = createPayload(gitUrl, MASTER, c.getName());
         v.queueForValidation(payload, r);
         v.waitFor(gitUrl, c.getName());
         assertEquals("success", r.getCommitStatus(payload));
@@ -53,7 +55,7 @@ public class RepositoryCommitValidatorTest {
         c = git.commit().setAuthor("test", "test@fake.fake")
                 .setMessage("Added invalid file")
                 .setCommitter("committer", "committer@fake.fake").call();
-        payload = createPayload(gitUrl, c.getName());
+        payload = createPayload(gitUrl, MASTER, c.getName());
         v.queueForValidation(payload, r);
         v.waitFor(gitUrl, c.getName());
 
@@ -69,15 +71,14 @@ public class RepositoryCommitValidatorTest {
         c = git.commit().setAuthor("test", "test@fake.fake")
                 .setMessage("Added files with duplicate IDs")
                 .setCommitter("committer", "committer@fake.fake").call();
-        payload = createPayload(gitUrl, c.getName());
+        payload = createPayload(gitUrl, MASTER, c.getName());
         v.queueForValidation(payload, r);
         v.waitFor(gitUrl, c.getName());
         assertTrue("An error about duplicate ids should be reported!", reports.getFailureReport(gitUrl, c.getName()).endsWith(" have the same id."));
     }
     
-    private GithubPayload createPayload(URI gitUrl, String commitName) throws InvalidKeyException, NoSuchAlgorithmException, UnsupportedEncodingException {
-        String fakeJSONObject = "{\"repo\":\"" + gitUrl + "\",\"repository\":{\"url\":\"" + "foo"
-                + "\"},\"after\":\"" + commitName + "\"}";
+    private GithubPayload createPayload(URI gitUrl, String branch, String commitName) throws InvalidKeyException, NoSuchAlgorithmException, UnsupportedEncodingException {
+        String fakeJSONObject = "{\"ref\": \"" + branch + "\", \"repository\":{\"url\":\"" + gitUrl + "\"},\"after\":\"" + commitName + "\"}";
         return new GithubPayload(fakeJSONObject.getBytes(), GithubPayload.computeDigest(fakeJSONObject.getBytes("UTF-8")));
     }
 

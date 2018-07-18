@@ -37,9 +37,8 @@ public class GithubPayload {
                 payload = reader.readObject();
             }
             
-            repository = new URI(payload.getString("repo"));
+            repository = new URI(payload.getJsonObject("repository").getString("url"));
         } catch (Exception e) {
-            e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
@@ -53,7 +52,7 @@ public class GithubPayload {
     }
     
     public String getRef() {
-        return payload.getJsonObject("repository").getString("url");
+        return payload.getString("ref");
     }
     
     public String getCommitHash() {

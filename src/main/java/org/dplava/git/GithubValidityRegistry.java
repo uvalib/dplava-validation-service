@@ -93,6 +93,20 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
         return null;
     }
 
+    private String getSMTPHostname() {
+        return System.getenv("SMTP_HOST");
+    }
+
+    private int getSMTPPort() {
+        final String portString = System.getenv("SMTP_PORT");
+        try {
+            return Integer.parseInt(portString);
+        } catch (NumberFormatException e) {
+            LOGGER.debug("Unparsible SMTP_PORT value of \"" + portString + "\" defaulted to 25.");
+            return 25;
+        }
+    }
+
     @Override
     public void reportCommitInvalid(GithubPayload payload, String url) throws IOException {
         postStatus(payload, FAILURE, url);
@@ -100,8 +114,8 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
         //notify pusher via email
         try {
             Email email = new SimpleEmail();
-            email.setHostName("localhost");
-            email.setSmtpPort(465);
+            email.setHostName(getSMTPHostname());
+            email.setSmtpPort(getSMTPPort());
             email.setFrom(payload.getErrorEmail());
             email.setSubject("Github Repository Validation Failure");
             

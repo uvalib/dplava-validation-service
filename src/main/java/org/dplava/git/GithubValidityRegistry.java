@@ -110,6 +110,15 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
         }
     }
 
+    public static String getContactInfo() {
+        final String contactInfo = System.getenv("CONTACT_INFO");
+        if (contactInfo == null) {
+            return "your DPLAVA metadata or technical liaison";
+        } else {
+            return contactInfo;
+        }
+    }
+
     @Override
     public void reportCommitInvalid(GithubPayload payload, String url) throws IOException {
         postStatus(payload, FAILURE, url);
@@ -127,8 +136,8 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
                     + "process did not pass all of the metadata checks.\n\nUntil the issues have been "
                     + "addressed and a subsequent submission (push) has been made, only the last "
                     + "valid set of records will be included in DPLA.\n\nA full report of the failed "
-                    + "metadata checks is available at " + url + ".\n\nPlease contact a "
-                    + "member of the Digital Virginias team if you have further questions.";
+                    + "metadata checks is available at " + url + ".\n\nPlease contact "
+                    + getContactInfo() + " if you have further questions.";
             email.setMsg(message);
             email.addTo(payload.getEmail());
             email.send();

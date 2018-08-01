@@ -141,7 +141,7 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
             email.setMsg(message);
             email.addTo(payload.getEmail());
             email.send();
-            LOGGER.info("Sent email about invalid records to " + payload.getErrorEmail());
+            LOGGER.info("Sent email about invalid records to " + payload.getEmail());
         } catch (EmailException e) {
             throw new RuntimeException(e);
         }

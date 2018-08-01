@@ -1,6 +1,7 @@
 package org.dplava.git;
 
 import java.io.IOException;
+import java.net.URI;
 
 public interface ValidityRegistry {
 
@@ -9,7 +10,7 @@ public interface ValidityRegistry {
     public static String FAILURE = "failure";
     public static String PENDING = "pending";
 
-    public String getCommitStatus(GithubPayload payload) throws IOException;
+    public String getCommitStatus(URI repo, String commitHash) throws IOException;
 
     public void reportCommitInvalid(GithubPayload payload, String url) throws IOException;
 

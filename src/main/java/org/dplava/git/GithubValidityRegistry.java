@@ -72,9 +72,9 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
     }
 
     @Override
-    public String getCommitStatus(GithubPayload payload) throws IOException {
+    public String getCommitStatus(URI repo, String commitHash) throws IOException {
         try (CloseableHttpClient client = HttpClients.createDefault()) {
-            HttpGet get = new HttpGet(BASE_URL + "/repos" + payload.getRepository().getPath() + "/commits/" + payload.getCommitHash() + "/statuses");
+            HttpGet get = new HttpGet(BASE_URL + "/repos" + repo.getPath() + "/commits/" + commitHash + "/statuses");
             get.setHeader("Accept", "application/vnd.github.v3+json");
             try (CloseableHttpResponse response = client.execute(get)) {
                 JsonArray a = Json.createReader(response.getEntity().getContent()).readArray();

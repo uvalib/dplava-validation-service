@@ -82,8 +82,6 @@ public class RepositoryCommitValidator {
     /**
      * Asynchronously validates an individual commit and then runs the passed ResultReporter with the
      * result of the validation operation.
-     * @param repo the URI for a given repository
-     * @param commitHash the sha1 of the commit to validate
      * @param registry the ValidityRegistry to receive notifications about the validity status of the commit
      */
     public void queueForValidation(GithubPayload payload, final ValidityRegistry registry) throws IOException {
@@ -182,7 +180,7 @@ public class RepositoryCommitValidator {
                 RevCommit previous = null;
                 while (revisions.hasNext()) {
                     previous = revisions.next();
-                    final String previousCommitStatus = registry.getCommitStatus(payload);
+                    final String previousCommitStatus = registry.getCommitStatus(payload.getRepository(), previous.getName());
                     if (previousCommitStatus != null && previousCommitStatus.equals(ValidityRegistry.SUCCESS)) {
                         break;
                     } else {

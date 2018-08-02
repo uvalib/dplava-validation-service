@@ -47,7 +47,7 @@ public class RepositoryCommitValidatorTest {
         GithubPayload payload = createPayload(gitUrl, MASTER, c.getName());
         v.queueForValidation(payload, r);
         v.waitFor(gitUrl, c.getName());
-        assertEquals("success", r.getCommitStatus(payload));
+        assertEquals("success", r.getCommitStatus(payload.getRepository(), c.getName()));
 
         // add an invalid file
         FileUtils.copyFile(new File("src/test/resources/sample-missing-title.xml"), new File(gitDir, "sample1.xml"));
@@ -59,7 +59,7 @@ public class RepositoryCommitValidatorTest {
         v.queueForValidation(payload, r);
         v.waitFor(gitUrl, c.getName());
 
-        assertEquals("failure", r.getCommitStatus(payload));
+        assertEquals("failure", r.getCommitStatus(payload.getRepository(), c.getName()));
         assertEquals("Error: sample1.xml - At least one title element is required.", reports.getFailureReport(gitUrl, c.getName()));
 
         // now test the ability to skip dozens of irrelevant files
@@ -117,8 +117,8 @@ public class RepositoryCommitValidatorTest {
         private Map<String, String> hashToStatusMap = new HashMap<String, String>();
 
         @Override
-        public String getCommitStatus(GithubPayload payload) {
-            return hashToStatusMap.get(payload.getCommitHash());
+        public String getCommitStatus(URI repo, String commitHash) throws IOException {
+            return hashToStatusMap.get(commitHash);
         }
 
         @Override

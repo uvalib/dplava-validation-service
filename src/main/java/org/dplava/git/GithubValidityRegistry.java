@@ -76,7 +76,7 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
         try (CloseableHttpClient client = HttpClients.createDefault()) {
             HttpGet get = new HttpGet(BASE_URL + "/repos" + repo.getPath() + "/commits/" + commitHash + "/statuses");
             get.setHeader("Accept", "application/vnd.github.v3+json");
-            try (CloseableHttpResponse response = client.execute(get)) {
+            try (CloseableHttpResponse response = client.execute(get, basicAuth(BASE_URL))) {
                 if (isValidStatus(response.getStatusLine().getStatusCode())) {
                     JsonArray a = Json.createReader(response.getEntity().getContent()).readArray();
                     for (int i = 0; i < a.size(); i++) {

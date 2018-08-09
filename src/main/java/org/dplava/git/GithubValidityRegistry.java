@@ -87,6 +87,8 @@ public class GithubValidityRegistry implements ValidityRegistry, ReportPersisten
                             return state;
                         }
                     }
+                } else {
+                    logUnexpectedResponse(get, response);
                 }
             }
             // TODO: paging might be necessary in some contexts, but not in our initial design, assuming github will

@@ -25,10 +25,12 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -43,13 +45,15 @@ import javax.xml.parsers.ParserConfigurationException;
  */
 public class RepositoryCommitValidator {
 
+    private static Set<String> validatedRepositories = new HashSet<String>();
+    
     /**
      * Synchronize on this in order to access either queuedCommits or runningCommits.
      */
     private Queue<CommitValidator> queuedCommits;
 
     private List<CommitValidator> runningCommits;
-
+    
     private int maxWorkerCount;
 
     private List<Worker> workers;
@@ -190,7 +194,7 @@ public class RepositoryCommitValidator {
 
                 final ErrorAggregator errors = new ErrorAggregator();
 
-                if (previous == null) {
+                if (previous == null || !RepositoryCommitValidator.hasThisDeployedVersionValidatedRepositoryYet(payload.getRepository().toString())) {
                     // no valid commit in the history: validate every file (YUCK!)
                     start = System.currentTimeMillis();
                     final long count = validateFileFromGitDir(gitDir, new DPLAVAMetadataValidator(), errors);
@@ -322,6 +326,21 @@ public class RepositoryCommitValidator {
             }
         } catch (SAXException | IOException e) {
             errors.error("Unable to parse " + directory.getName());
+        }
+    }
+    
+    /**
+     * Because new versions of this validation application may result in new rules 
+     * to be enforced, for simplicity, the first time any repository is validated by
+     * a running instance of this code all items are validated, whether they were 
+     * considered valid before or not.
+     */
+    private static boolean hasThisDeployedVersionValidatedRepositoryYet(final String repo) {
+        if (validatedRepositories.contains(repo)) {
+            return true;
+        } else {
+            validatedRepositories.add(repo);
+            return false;
         }
     }
 }

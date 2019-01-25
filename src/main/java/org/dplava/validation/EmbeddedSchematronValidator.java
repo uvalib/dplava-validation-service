@@ -18,13 +18,17 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.sax.SAXResult;
 import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
+import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
+
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collections;
@@ -33,6 +37,8 @@ import java.util.Iterator;
 public class EmbeddedSchematronValidator {
 
     private Transformer schematron;
+    
+    private Transformer w3cdtfValidationTransformer;
 
     private XPath xpath;
 
@@ -96,7 +102,7 @@ public class EmbeddedSchematronValidator {
 
         /*
          * Performing schematron validation using rules embedded in an XSD schema involves
-         * running that schema through 4 transofrmations and using the resulting XSLT to
+         * running that schema through 4 transformations and using the resulting XSLT to
          * transform the file to validate.
          */
         SAXTransformerFactory f = (SAXTransformerFactory) TransformerFactory.newInstance("net.sf.saxon.TransformerFactoryImpl", null);
@@ -123,6 +129,12 @@ public class EmbeddedSchematronValidator {
         t.transform(new DOMSource(b.parse(xsd.openStream())), new SAXResult(th1));
 
         schematron = f.newTemplates(new DOMSource(domResult.getNode())).newTransformer();
+        
+        /*
+         * Performing W3CDTF validation involves running the original document through a
+         * single transform and parsing the output.
+         */
+        w3cdtfValidationTransformer = f.newTemplates(new StreamSource(getClass().getClassLoader().getResourceAsStream("checkEDTF_3.xsl"))).newTransformer();
     }
 
     public void validateXmlDocument(String filename, Document d, ErrorAggregator errors) {
@@ -138,6 +150,20 @@ public class EmbeddedSchematronValidator {
         } catch (XPathExpressionException e) {
             e.printStackTrace();
             errors.error(filename + " - " + "Error parsing schematron validation result.");
+        }
+        
+        try {
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            StreamResult result = new StreamResult(os);
+            w3cdtfValidationTransformer.transform(new DOMSource(d), result);
+            String errorMessage = new String(os.toByteArray(), "UTF-8");
+            if (errorMessage.length() > 0) {
+                errors.error(filename + " - " + errorMessage.replace("--", "").replace("\n", " "));
+            }
+        } catch (TransformerException e) {
+            errors.error(filename + " - " + (e.getLocalizedMessage() == null ? "Error performing schematron validation." : e.getLocalizedMessage()));
+        } catch (UnsupportedEncodingException e) {
+            errors.error("System Error: " + e.getLocalizedMessage());
         }
 
     }

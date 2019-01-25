@@ -58,6 +58,14 @@ public class DPLAVAMetdataValidatorTest {
         V.validateFile(new File("src/test/resources/sample-unapproved-extension.xml"), e);
         assertEquals(false, e.isValid());
     }
+    
+    @Test
+    public void testValidatorAgainstInvalidDate() throws IOException, SAXException, ParserConfigurationException, TransformerException {
+        ErrorAggregator e = new ErrorAggregator();
+        V.validateFile(new File("src/test/resources/sample-invalid-date.xml"), e);
+        assertEquals(false, e.isValid());
+    }
+
 
 
 }

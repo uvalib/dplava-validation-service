@@ -6,7 +6,7 @@
     <groupId>org.dplava</groupId>
     <artifactId>validation-service</artifactId>
     <packaging>war</packaging>
-    <version>1.5</version>
+    <version>1.6</version>
     <name>validation-service</name>
 
     <dependencyManagement>

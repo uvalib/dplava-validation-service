@@ -508,12 +508,6 @@
             </xsl:choose>
           </xsl:variable>
 
-          <xsl:message>
-            <xsl:value-of
-              select="concat('Range start (&quot;', $cmpStart, '&quot;) ; Range end (&quot;', $cmpEnd, '&quot;)&#xa;')"
-            />
-          </xsl:message>
-
           <!-- Issue error message if end date is greater than start date -->
           <xsl:if test="number($cmpEnd) &lt; number($cmpStart)">
             <xsl:value-of

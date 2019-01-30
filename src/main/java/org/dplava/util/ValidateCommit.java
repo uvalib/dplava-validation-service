@@ -20,18 +20,20 @@ import java.security.NoSuchAlgorithmException;
 public class ValidateCommit {
 
     public static void main(String [] args) throws IOException, NoSuchAlgorithmException, InvalidKeyException {
-        if (args.length != 4) {
-            System.out.println("Four parameters required: validation hook url, repository owner/name, commit hash, secret");
+        if (args.length != 5) {
+            System.out.println("Four parameters required: validation hook url, repository owner/name, commit hash, secret, email");
             System.exit(1);
         }
         final String validationHookUrl = args[0];
         final String repoName = args[1];
-        final String commitHash = args[1];
-        final String secret = args[2];
+        final String commitHash = args[2];
+        final String secret = args[3];
+        final String email = args[4];
         final String jsonPayload = Json.createObjectBuilder()
                 .add("ref", "refs/heads/master")
                 .add("repository", Json.createObjectBuilder().add("url", "https://github.com/" + repoName).build())
-                .add("after", commitHash).build().toString();
+                .add("after", commitHash)
+                .add("pusher", Json.createObjectBuilder().add("email", email)).build().toString();
         final byte[] payloadBytes = jsonPayload.getBytes("UTF-8");
         SecretKeySpec keySpec = new SecretKeySpec(secret.getBytes(), "HmacSHA1");
         Mac mac = Mac.getInstance("HmacSHA1");

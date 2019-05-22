@@ -1,6 +1,9 @@
 package org.dplava.validation;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
+import org.xml.sax.ErrorHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
@@ -29,6 +32,8 @@ import java.net.URL;
 public class DPLAVAMetadataValidator {
 
     final static String SCHEMA_URL = "https://dplava.lib.virginia.edu/dplava.xsd";
+    
+    private static final Logger LOGGER = LoggerFactory.getLogger(DPLAVAMetadataValidator.class);
 
     private DocumentBuilderFactory factory;
 
@@ -36,8 +41,26 @@ public class DPLAVAMetadataValidator {
 
     public DPLAVAMetadataValidator() throws ParserConfigurationException, TransformerException, IOException, SAXException {
         factory = DocumentBuilderFactory.newInstance();
-        factory.setSchema(SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI).newSchema(new URL(SCHEMA_URL)));
+        SchemaFactory f = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+        f.setErrorHandler(new ErrorHandler() {
+
+            @Override
+            public void error(SAXParseException ex) throws SAXException {
+                LOGGER.error("Error parsing dplava schema!", ex);
+            }
+
+            @Override
+            public void fatalError(SAXParseException ex) throws SAXException {
+                LOGGER.error("Error parsing dplava schema!", ex);
+            }
+
+            @Override
+            public void warning(SAXParseException ex) throws SAXException {
+                LOGGER.warn("Error parsing dplava schema!", ex);
+            }});
+        factory.setSchema(f.newSchema(new URL(SCHEMA_URL)));
         factory.setNamespaceAware(true);
+        
 
         validator = new EmbeddedSchematronValidator(SCHEMA_URL);
     }

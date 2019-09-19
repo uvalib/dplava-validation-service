@@ -10,6 +10,8 @@
   <!-- PARAMETERS                                                              -->
   <!-- ======================================================================= -->
 
+  <xsl:param name="diagnostics" select="'false'"/>
+
   <!-- ======================================================================= -->
   <!-- GLOBAL VARIABLES                                                        -->
   <!-- ======================================================================= -->
@@ -21,7 +23,7 @@
 
   <!-- program version -->
   <xsl:variable name="version">
-    <xsl:text>1.0 beta</xsl:text>
+    <xsl:text>1.1 beta</xsl:text>
   </xsl:variable>
 
   <!-- program id -->
@@ -43,6 +45,10 @@
     <xsl:param name="dateString"/>
 
     <xsl:choose>
+
+      <!-- Single date with value 'undated' -->
+      <!-- NOT EDTF COMPLIANT, but a common value, so allow it -->
+      <xsl:when test="matches($dateString, '^undated$', 'i')"/>
 
       <!-- Level 0 and 1 -->
       <!-- Single date with null value -->
@@ -508,7 +514,16 @@
             </xsl:choose>
           </xsl:variable>
 
-          <!-- Issue error message if end date is greater than start date -->
+          <!-- Emit error message -->
+          <xsl:if test="$diagnostics eq 'true'">
+            <xsl:message>
+              <xsl:value-of
+                select="concat('Range start (&quot;', $cmpStart, '&quot;) ; Range end (&quot;', $cmpEnd, '&quot;)&#xa;')"
+              />
+            </xsl:message>
+          </xsl:if>
+
+          <!-- Output message if end date is greater than start date -->
           <xsl:if test="number($cmpEnd) &lt; number($cmpStart)">
             <xsl:value-of
               select="concat('Range start (&quot;', $startDate, '&quot;) later than range end (&quot;', $endDate, '&quot;)&#xa;')"
@@ -597,7 +612,7 @@
           <xsl:when
             test="
               matches($dateSet, '&#32;') or matches($dateSet, '[\.]{3}') or
-              matches($dateSet, '[,]{2}') or matches($dateSet, ',\.\.') or matches($dateSet, '\.\.,') or
+              matches($dateSet, '[,]{2}') or matches($dateSet, ',\.\.?') or matches($dateSet, '\.\.?,') or
               matches($dateSet, '^,') or matches($dateSet, ',$') or
               matches($dateSet, '\.\.[^,]*?\.\.') or
               (matches($dateSet, '^\.\..*\.\.$') and not(matches($dateSet, ',')))">

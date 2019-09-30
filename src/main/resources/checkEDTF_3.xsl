@@ -46,6 +46,13 @@
 
     <xsl:choose>
 
+      <!-- Single date matching '^-?0+$' IS NOT valid -->
+      <xsl:when test="matches($dateString, '^-?0+$')">
+        <xsl:call-template name="warning">
+          <xsl:with-param name="warningText">"<xsl:value-of select="$dateString"/>"</xsl:with-param>
+        </xsl:call-template>
+      </xsl:when>
+
       <!-- Single date with value 'undated' -->
       <!-- NOT EDTF COMPLIANT, but a common value, so allow it -->
       <xsl:when test="matches($dateString, '^undated$', 'i')"/>
@@ -58,54 +65,101 @@
         qualification of a complete date, and unspecified digits from the right -->
       <xsl:when
         test="
-          matches($dateString, '^-?([1-9]X{0,3}|[1-9]\d{1}X{0,2}|[1-9]\d{2}X{0,1}|[1-9]\d{3}|Y[1-9]\d{4,}|Y[1-9]\d{3}X|Y[1-9]\d{2}XX+|Y[1-9]\dXXX+)(-(21|22|23|24))?(~|\?|%)?$') or
-          matches($dateString, '^-?([1-9]X{0,3}|[1-9]\d{1}X{0,2}|[1-9]\d{2}X{0,1}|[1-9]\d{3}|Y[1-9]\d{4,}|Y[1-9]\d{3}X|Y[1-9]\d{2}XX+|Y[1-9]\dXXX+)(-(01|03|05|07|08|10|12|XX)(-(0[1-9]|[1-2][0-9]|3[0-1]|XX))?)?(~|\?|%)?$') or
-          matches($dateString, '^-?([1-9]X{0,3}|[1-9]\d{1}X{0,2}|[1-9]\d{2}X{0,1}|[1-9]\d{3}|Y[1-9]\d{4,}|Y[1-9]\d{3}X|Y[1-9]\d{2}XX+|Y[1-9]\dXXX+)(-(04|06|09|11)(-(0[1-9]|[1-2][0-9]|30|XX))?)?(~|\?|%)?$') or
-          matches($dateString, '^-?([1-9]X{0,3}|[1-9]\d{1}X{0,2}|[1-9]\d{2}X{0,1}|[1-9]\d{3}|Y[1-9]\d{4,}|Y[1-9]\d{3}X|Y[1-9]\d{2}XX+|Y[1-9]\dXXX+)(-(02)(-(0[1-9]|[1-2][0-9]|XX))?)?(~|\?|%)?$') or
-          matches($dateString, '^-?([1-9]\d{0,3}|Y[1-9]\d{4,})-(((01|03|05|07|08|10|12)-(0[1-9]|[1-2][0-9]|3[0-1]))|((04|06|09|11)(-(0[1-9]|[1-2][0-9]|30))|((02)(-(0[1-9]|[1-2][0-9])))))(T([01][0-9]|2[0-3]):([0-5][0-9])(:([0-5][0-9]|60)([\.,]\d+)?)?(Z|(\+|-)([01][0-9]|2[0-3])((:[0-5][0-9])(:[0-5][0-9]([\.,]\d+)?)?)?)?)?(~|\?|%)?$')"/>
+          matches($dateString, '^-?([1-9]X{0,3}|[1-9]\d{1}X{0,2}|[1-9]\d{2}X{0,1}|[1-9]\d{3})(-(21|22|23|24))?(~|\?|%)?$') or
+          matches($dateString, '^-?([1-9]X{0,3}|[1-9]\d{1}X{0,2}|[1-9]\d{2}X{0,1}|[1-9]\d{3})(-(01|03|05|07|08|10|12|XX)(-(0[1-9]|[1-2]\d|3[0-1]|XX))?)?(~|\?|%)?$') or
+          matches($dateString, '^-?([1-9]X{0,3}|[1-9]\d{1}X{0,2}|[1-9]\d{2}X{0,1}|[1-9]\d{3})(-(04|06|09|11)(-(0[1-9]|[1-2]\d|30|XX))?)?(~|\?|%)?$') or
+          matches($dateString, '^-?([1-9]X{0,3}|[1-9]\d{1}X{0,2}|[1-9]\d{2}X{0,1}|[1-9]\d{3})(-(02)(-(0[1-9]|[1-2]\d|XX))?)?(~|\?|%)?$') or
+          matches($dateString, '^-?([1-9]\d{0,3})-(((01|03|05|07|08|10|12)-(0[1-9]|[1-2]\d|3[0-1]))|((04|06|09|11)(-(0[1-9]|[1-2]\d|30))|((02)(-(0[1-9]|[1-2]\d)))))(T([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d|60)([\.,]\d+)?)?(Z|(\+|-)([01]\d|2[0-3])((:[0-5]\d)(:[0-5]\d([\.,]\d+)?)?)?)?)?(~|\?|%)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{4,}|Y-?[1-9]\d{3}X|Y-?[1-9]\d{2}XX+|Y-?[1-9]\dXXX+)(-(21|22|23|24))?(~|\?|%)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{4,}|Y-?[1-9]\d{3}X|Y-?[1-9]\d{2}XX+|Y-?[1-9]\dXXX+)(-(01|03|05|07|08|10|12|XX)(-(0[1-9]|[1-2]\d|3[0-1]|XX))?)?(~|\?|%)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{3}X|Y-?[1-9]\d{2}XX+|Y-?[1-9]\dXXX+)(-(04|06|09|11)(-(0[1-9]|[1-2]\d|30|XX))?)?(~|\?|%)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{4,}|Y-?[1-9]\d{3}X|Y-?[1-9]\d{2}XX+|Y-?[1-9]\dXXX+)(-(02)(-(0[1-9]|[1-2]\d|XX))?)?(~|\?|%)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{4,})-(((01|03|05|07|08|10|12)-(0[1-9]|[1-2]\d|3[0-1]))|((04|06|09|11)(-(0[1-9]|[1-2]\d|30))|((02)(-(0[1-9]|[1-2]\d)))))(T([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d|60)([\.,]\d+)?)?(Z|(\+|-)([01]\d|2[0-3])((:[0-5]\d)(:[0-5]\d([\.,]\d+)?)?)?)?)?(~|\?|%)?$')"/>
 
       <!-- Level 2 -->
       <!-- Single exponential year or year with optional significant digits -->
       <xsl:when
         test="
-          matches($dateString, '^-?[1-9][0-9]{0,3}(S[1-9][0-9]*)?$') or
-          matches($dateString, '^-?[1-9][0-9]{0,3}(S[1-9][0-9]*)?$') or
-          matches($dateString, '^Y-?[1-9][0-9]*E[1-9][0-9]*(S[1-9][0-9]*)?$') or
-          matches($dateString, '^-?Y[1-9][0-9]{4,}(S[1-9][0-9]*)?$')"/>
+          matches($dateString, '^-?[1-9]\d{0,3}(S[1-9]\d*)?$') or
+          matches($dateString, '^-?[1-9]\d{0,3}(S[1-9]\d*)?$') or
+          matches($dateString, '^Y-?[1-9]\d*E[1-9]\d*(S[1-9]\d*)?$') or
+          matches($dateString, '^Y-?[1-9]\d{4,}(S[1-9]\d*)?$')"/>
 
       <!-- Additional sub-year groupings (with optional qualifiers) -->
       <xsl:when
-        test="matches($dateString, '^-?([1-9]X{0,3}|[1-9]\d{1}X{0,2}|[1-9]\d{2}X{0,1}|[1-9]\d{3}|Y[1-9]\d{4,}|Y[1-9]\d{3}X|Y[1-9]\d{2}XX+|Y[1-9]\dXXX+)(-(~|\?|%)?(2[1-9]|3[0-9]|4[0-1]))?(~|\?|%)?$')"/>
+        test="
+          matches($dateString, '^-?([1-9]X{0,3}|[1-9]\d{1}X{0,2}|[1-9]\d{2}X{0,1}|[1-9]\d{3})(-(~|\?|%)?(2[1-9]|3\d|4[0-1]))?(~|\?|%)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{4,}|Y[1-9]\d{3}X|Y-?[1-9]\d{2}XX+|Y-?[1-9]\dXXX+)(-(~|\?|%)?(2[1-9]|3\d|4[0-1]))?(~|\?|%)?$')"/>
 
       <!-- Single date with trailing qualifications of groups and individual components -->
       <xsl:when
         test="
-          matches($dateString, '^-?([1-9]\d{0,3}|Y[1-9]\d{4,})(~|\?|%)?(-(01|03|05|07|08|10|12)(~|\?|%)?(-(0[1-9]|[1-2][0-9]|3[0-1])(~|\?|%)?)?)?$') or
-          matches($dateString, '^-?([1-9]\d{0,3}|Y[1-9]\d{4,})(~|\?|%)?(-(04|06|09|11)(~|\?|%)?(-(0[1-9]|[1-2][0-9]|30)(~|\?|%)?)?)?$') or
-          matches($dateString, '^-?([1-9]\d{0,3}|Y[1-9]\d{4,})(~|\?|%)?(-(02)(~|\?|%)?(-(0[1-9]|[1-2][0-9])(~|\?|%)?)?)?$')"/>
+          matches($dateString, '^-?([1-9]\d{0,3})(~|\?|%)?(-(01|03|05|07|08|10|12)(~|\?|%)?(-(0[1-9]|[1-2]\d|3[0-1])(~|\?|%)?)?)?$') or
+          matches($dateString, '^-?([1-9]\d{0,3})(~|\?|%)?(-(04|06|09|11)(~|\?|%)?(-(0[1-9]|[1-2]\d|30)(~|\?|%)?)?)?$') or
+          matches($dateString, '^-?([1-9]\d{0,3})(~|\?|%)?(-(02)(~|\?|%)?(-(0[1-9]|[1-2]\d)(~|\?|%)?)?)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{4,})(~|\?|%)?(-(01|03|05|07|08|10|12)(~|\?|%)?(-(0[1-9]|[1-2]\d|3[0-1])(~|\?|%)?)?)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{4,})(~|\?|%)?(-(04|06|09|11)(~|\?|%)?(-(0[1-9]|[1-2]\d|30)(~|\?|%)?)?)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{4,})(~|\?|%)?(-(02)(~|\?|%)?(-(0[1-9]|[1-2]\d)(~|\?|%)?)?)?$')"/>
 
       <!-- Single date with leading qualifications of groups and individual components -->
       <xsl:when
         test="
-          matches($dateString, '^-?(~|\?|%)?([1-9]\d{0,3}|Y[1-9]\d{4,})(-(~|\?|%)?(01|03|05|07|08|10|12)(-(~|\?|%)?(0[1-9]|[1-2][0-9]|3[0-1]))?)?$') or
-          matches($dateString, '^-?(~|\?|%)?([1-9]\d{0,3}|Y[1-9]\d{4,})(-(~|\?|%)?(04|06|09|11)(-(~|\?|%)?(0[1-9]|[1-2][0-9]|30))?)?$') or
-          matches($dateString, '^-?(~|\?|%)?([1-9]\d{0,3}|Y[1-9]\d{4,})(-(~|\?|%)?(02)(-(~|\?|%)?(0[1-9]|[1-2][0-9]))?)?$')"/>
+          matches($dateString, '^-?(~|\?|%)?([1-9]\d{0,3})(-(~|\?|%)?(01|03|05|07|08|10|12)(-(~|\?|%)?(0[1-9]|[1-2]\d|3[0-1]))?)?$') or
+          matches($dateString, '^-?(~|\?|%)?([1-9]\d{0,3})(-(~|\?|%)?(04|06|09|11)(-(~|\?|%)?(0[1-9]|[1-2]\d|30))?)?$') or
+          matches($dateString, '^-?(~|\?|%)?([1-9]\d{0,3})(-(~|\?|%)?(02)(-(~|\?|%)?(0[1-9]|[1-2]\d))?)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{4,})(-(~|\?|%)?(01|03|05|07|08|10|12)(-(~|\?|%)?(0[1-9]|[1-2]\d|3[0-1]))?)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{4,})(-(~|\?|%)?(04|06|09|11)(-(~|\?|%)?(0[1-9]|[1-2]\d|30))?)?$') or
+          matches($dateString, '^(Y-?[1-9]\d{4,})(-(~|\?|%)?(02)(-(~|\?|%)?(0[1-9]|[1-2]\d))?)?$')"/>
 
       <!-- Single year with unspecified digits with optional sub-year component, with optional trailing qualifier -->
       <xsl:when
         test="
-          matches($dateString, '^-?([\dX]{1,4}|Y[\dX]{5,})(-(~|\?|%)?(2[1-9]|3[0-9]|4[0-1]))?(~|\?|%)?$')"/>
+          matches($dateString, '^(-?[\dX]{1,4}|Y-?[\dX]{5,})(-(~|\?|%)?(2[1-9]|3\d|4[0-1]))?(~|\?|%)?$')"/>
 
-      <!-- Single date with complete month but unspecified digits elsewhere -->
+      <!-- Single date with specific month and day -->
       <xsl:when
         test="
-          matches($dateString, '^-?([\dX]{1,4}|Y[\dX]{5,})(-(01|03|05|07|08|10|12)(-(0[1-9X]|[1-2][0-9X]|3[0-1X]|X\d|XX))?)?$') or
-          matches($dateString, '^-?([\dX]{1,4}|Y[\dX]{5,})(-(04|06|09|11)(-(0[1-9X]|[1-2][0-9X]|3[0X]|X\d|XX))?)?$') or
-          matches($dateString, '^-?([\dX]{1,4}|Y[\dX]{5,})(-(02)(-(0[1-9X]|[1-2][0-9X]|X\d|XX))?)?$')"/>
+          matches($dateString, '^(-?[\dX]{1,4}|Y-?[\dX]{5,})(-(01|03|05|07|08|10|12)(-(0[1-9]|[1-2][0-9]|3[0-1]))?)?$') or
+          matches($dateString, '^(-?[\dX]{1,4}|Y-?[\dX]{5,})(-(04|06|09|11)(-(0[1-9]|[1-2][0-9]|3[0]))?)?$') or
+          matches($dateString, '^(-?[\dX]{1,4}|Y-?[\dX]{5,})(-(02)(-(0[1-9]|[1-2][0-9]))?)?$')"/>
 
-      <!-- Single date with unspecified digits anywhere -->
+      <!-- Single date with specific month but unspecified digits in day -->
       <xsl:when
-        test="matches($dateString, '^-?([\dX]{1,4}|Y[\dX]{5,})(-(0[1-9X]|1[0-2X]|X[0-2X])(-(0[1-9X]|[1-2][0-9X]|3[0-1X]|X\d|XX))?)?$')"/>
+        test="
+          matches($dateString, '^(-?[\dX]{1,4}|Y-?[\dX]{5,})(-(01|03|05|07|08|10|12)(-(0[1-9X]|[1-2][0-9X]|3[0-1X]|X\d|XX))?)?$') or
+          matches($dateString, '^(-?[\dX]{1,4}|Y-?[\dX]{5,})(-(04|06|09|11)(-(0[1-9X]|[1-2][0-9X]|3[0X]|X\d|XX))?)?$') or
+          matches($dateString, '^(-?[\dX]{1,4}|Y-?[\dX]{5,})(-(02)(-(0[1-9X]|[1-2][0-9X]|X\d|XX))?)?$')"/>
+
+      <!-- Single date with specific day but unspecified digits in year and month -->
+      <xsl:when
+        test="
+          matches($dateString, '^(-?[\dX]{1,4}|Y-?[\dX]{5,})(-(X[012]|[01]X)(-[0123]\d)?)?$')"/>
+
+      <!-- Single date with specific year but unspecified digits in month and day -->
+      <xsl:when
+        test="
+          matches($dateString, '^(-?[\dX]{1,4}|Y-?[\dX]{5,})(-(X[012]|[01]X)(-[0123X][\dX])?)?$')"/>
+
+      <!-- This test is too lenient. Keeping it, however, as a starting point for future revision. -->
+      <!-- Single date with unspecified digits anywhere -->
+      <!--<xsl:when
+        test="
+          matches($dateString, '^-?([\dX]{1,4})(-(0[1-9X]|1[0-2X]|X[0-2X])(-(0[1-9X]|[1-2][0-9X]|3[0-1X]|X\d|XX))?)?$') or
+          matches($dateString, '^(Y-?[\dX]{5,})(-(0[1-9X]|1[0-2X]|X[0-2X])(-(0[1-9X]|[1-2][0-9X]|3[0-1X]|X\d|XX))?)?$')"
+        >
+        <xsl:if test="matches($dateString, '^-?([\dX]{1,4})-\d{2}\d{2}')">
+          <xsl:choose>
+            <xsl:when test="matches($dateString, '^-?([\dX]{1,4})-(01|03|05|07|08|10|12)-(0[1-9]|[1-2][0-9]|3[0-1])') or
+              matches($dateString, '^-?([\dX]{1,4})-(04|06|09|11)-(0[1-9]|[1-2][0-9]|30)') or 
+              matches($dateString, '^-?([\dX]{1,4})-(02)-(0[1-9]|[1-2][0-9])')"/>
+            <xsl:otherwise>
+              <xsl:call-template name="warning">
+                <xsl:with-param name="warningText">"<xsl:value-of select="$dateString"/>"</xsl:with-param>
+              </xsl:call-template>
+            </xsl:otherwise>
+          </xsl:choose>
+        </xsl:if>        
+      </xsl:when>-->
 
       <!-- Anything else is invalid -->
       <xsl:otherwise>
@@ -124,6 +178,13 @@
     <xsl:variable name="endDate" select="substring-after($dateString, '/')"/>
 
     <xsl:choose>
+
+      <!-- Start date or end date matches '^-?0+$' -->
+      <xsl:when test="matches($startDate, '^-?0+$') or matches($endDate, '^-?0+$')">
+        <xsl:call-template name="warning">
+          <xsl:with-param name="warningText">"<xsl:value-of select="$dateString"/>"</xsl:with-param>
+        </xsl:call-template>
+      </xsl:when>
 
       <!-- Too many slashes -->
       <xsl:when test="matches($dateString, '/.*/')">
@@ -606,9 +667,10 @@
         </xsl:variable>
 
         <xsl:choose>
-          <!-- Spaces, adjoining dots and commas, commas at beginning or end of the expression,
-            dots at beginning and end of the expression without an intervening comma and
-            successive dots without an intervening comma are invalid -->
+          <!-- Spaces, more than 2 successive dots, more than 1 successive commas, adjoining dots
+                and commas, commas at beginning or end of the expression, dots at beginning and end
+                of the expression without an intervening comma, and successive dots without an
+                intervening comma are invalid. -->
           <xsl:when
             test="
               matches($dateSet, '&#32;') or matches($dateSet, '[\.]{3}') or

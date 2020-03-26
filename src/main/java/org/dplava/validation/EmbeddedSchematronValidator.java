@@ -38,8 +38,6 @@ public class EmbeddedSchematronValidator {
 
     private Transformer schematron;
     
-    private Transformer w3cdtfValidationTransformer;
-
     private XPath xpath;
 
     public EmbeddedSchematronValidator(final String xsdUrl) throws TransformerException, IOException, SAXException {
@@ -130,11 +128,6 @@ public class EmbeddedSchematronValidator {
 
         schematron = f.newTemplates(new DOMSource(domResult.getNode())).newTransformer();
         
-        /*
-         * Performing W3CDTF validation involves running the original document through a
-         * single transform and parsing the output.
-         */
-        w3cdtfValidationTransformer = f.newTemplates(new StreamSource(getClass().getClassLoader().getResourceAsStream("checkEDTF_3.xsl"))).newTransformer();
     }
 
     public void validateXmlDocument(String filename, Document d, ErrorAggregator errors) {
@@ -150,20 +143,6 @@ public class EmbeddedSchematronValidator {
         } catch (XPathExpressionException e) {
             e.printStackTrace();
             errors.error(filename + " - " + "Error parsing schematron validation result.");
-        }
-        
-        try {
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-            StreamResult result = new StreamResult(os);
-            w3cdtfValidationTransformer.transform(new DOMSource(d), result);
-            String errorMessage = new String(os.toByteArray(), "UTF-8");
-            if (errorMessage.length() > 0) {
-                errors.error(filename + " - " + errorMessage.replace("--", "").replace("\n", " "));
-            }
-        } catch (TransformerException e) {
-            errors.error(filename + " - " + (e.getLocalizedMessage() == null ? "Error performing schematron validation." : e.getLocalizedMessage()));
-        } catch (UnsupportedEncodingException e) {
-            errors.error("System Error: " + e.getLocalizedMessage());
         }
 
     }

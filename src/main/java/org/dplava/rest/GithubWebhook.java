@@ -97,8 +97,8 @@ public class GithubWebhook {
             return Response.status(400).build();
         }
 
-        if (!githubPayload.getRef().equals("refs/heads/master")) {
-            return Response.status(200).entity("This hook only validates the master branch.").build();
+        if (!githubPayload.getRef().equals("refs/heads/master") && !githubPayload.getRef().equals("refs/heads/main")) {
+            return Response.status(200).entity("This hook only validates the master or main branch.").build();
         }
 
         try {

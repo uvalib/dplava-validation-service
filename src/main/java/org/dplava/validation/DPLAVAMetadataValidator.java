@@ -62,7 +62,12 @@ public class DPLAVAMetadataValidator {
         factory.setNamespaceAware(true);
         
 
-        validator = new EmbeddedSchematronValidator(SCHEMA_URL);
+        try {
+            validator = new EmbeddedSchematronValidator(SCHEMA_URL);
+        } catch (Throwable t) {
+            LOGGER.error("Unable to load schematron validation routine!", t);
+            
+        }
     }
 
     private DocumentBuilder getDocumentBuilder(ErrorAggregator errors) throws ParserConfigurationException {
@@ -79,7 +84,11 @@ public class DPLAVAMetadataValidator {
             Document d = getDocumentBuilder(errors).parse(file);
 
             // perform schematron validation
-            validator.validateXmlDocument(file.getName(), d, errors);
+            if (validator == null) {
+                errors.error("Schematron validation not performed!");    
+            } else {
+                validator.validateXmlDocument(file.getName(), d, errors);
+            }
 
         } catch (SAXParseException ex) {
             errors.fatalError(ex);

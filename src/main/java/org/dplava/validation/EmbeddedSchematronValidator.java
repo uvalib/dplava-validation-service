@@ -98,13 +98,14 @@ public class EmbeddedSchematronValidator {
             }
         });
 
+        SAXTransformerFactory f = (SAXTransformerFactory) TransformerFactory.newInstance("net.sf.saxon.TransformerFactoryImpl", null);
+        f.setURIResolver(r);
+        
         /*
          * Performing schematron validation using rules embedded in an XSD schema involves
          * running that schema through 4 transformations and using the resulting XSLT to
          * transform the file to validate.
          */
-        SAXTransformerFactory f = (SAXTransformerFactory) TransformerFactory.newInstance("net.sf.saxon.TransformerFactoryImpl", null);
-        f.setURIResolver(r);
         Templates t1 = f.newTemplates(new StreamSource(getClass().getClassLoader().getResourceAsStream("ExtractSchFromXSD-2.xsl")));
         Templates t2 = f.newTemplates(new StreamSource(getClass().getClassLoader().getResourceAsStream("iso_dsdl_include.xsl")));
         Templates t3 = f.newTemplates(new StreamSource(getClass().getClassLoader().getResourceAsStream("iso_abstract_expand.xsl")));
@@ -127,7 +128,6 @@ public class EmbeddedSchematronValidator {
         t.transform(new DOMSource(b.parse(xsd.openStream())), new SAXResult(th1));
 
         schematron = f.newTemplates(new DOMSource(domResult.getNode())).newTransformer();
-        
     }
 
     public void validateXmlDocument(String filename, Document d, ErrorAggregator errors) {

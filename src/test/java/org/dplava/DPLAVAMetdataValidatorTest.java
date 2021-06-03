@@ -64,8 +64,22 @@ public class DPLAVAMetdataValidatorTest {
         ErrorAggregator e = new ErrorAggregator();
         V.validateFile(new File("src/test/resources/sample-invalid-date.xml"), e);
         assertEquals(false, e.isValid());
+     }
+
+    @Test
+    public void testValidatorAgainstValidDateSet() throws IOException, SAXException, ParserConfigurationException, TransformerException {
+        ErrorAggregator e = new ErrorAggregator();
+        assertEquals(true, e.isValid());
     }
 
-
+    @Test
+    public void testValidatorAgainstInvalidDateSet() throws IOException, SAXException, ParserConfigurationException, TransformerException {
+        ErrorAggregator e = new ErrorAggregator();
+        V.validateFile(new File("src/test/resources/sample-invalid-dateset.xml"), e);
+        assertEquals(false, e.isValid());
+        assertEquals("Error: sample-invalid-dateset.xml - Warning:\n"
+                + "                Suspect value\n"
+                + "Error: sample-invalid-dateset.xml - Warning: Suspect value.", e.getErrors());
+    }
 
 }

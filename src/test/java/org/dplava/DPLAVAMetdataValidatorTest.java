@@ -69,6 +69,8 @@ public class DPLAVAMetdataValidatorTest {
     @Test
     public void testValidatorAgainstValidDateSet() throws IOException, SAXException, ParserConfigurationException, TransformerException {
         ErrorAggregator e = new ErrorAggregator();
+        V.validateFile(new File("src/test/resources/sample-valid-dateset.xml"), e);
+        assertEquals("", e.getErrors());
         assertEquals(true, e.isValid());
     }
 
@@ -77,9 +79,18 @@ public class DPLAVAMetdataValidatorTest {
         ErrorAggregator e = new ErrorAggregator();
         V.validateFile(new File("src/test/resources/sample-invalid-dateset.xml"), e);
         assertEquals(false, e.isValid());
-        assertEquals("Error: sample-invalid-dateset.xml - Warning:\n"
-                + "                Suspect value\n"
+        assertEquals("Error: sample-invalid-dateset.xml - A date set must contain either \",\" or \"..\". Date sets containing spaces, more than\n"
+                + "                2 successive dots, more than 1 successive comma, adjoining dots and commas, commas\n"
+                + "                at beginning or end of the expression, dots at beginning and end of the expression\n"
+                + "                without an intervening comma, and successive dots without an intervening comma are\n"
+                + "                invalid.\n"
                 + "Error: sample-invalid-dateset.xml - Warning: Suspect value.", e.getErrors());
+    }
+    
+    @Test
+    public void testValidatorAgainstValidCNERS() throws IOException, SAXException, ParserConfigurationException, TransformerException {
+        ErrorAggregator e = new ErrorAggregator();
+        assertEquals(true, e.isValid());
     }
 
 }
